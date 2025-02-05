@@ -1,4 +1,4 @@
-from gui import run_app  # Assuming the GUI code is in gui.py
+from GUI import run_app  # Assuming the GUI code is in gui.py
 
 # Example scores
 main_score = 85
