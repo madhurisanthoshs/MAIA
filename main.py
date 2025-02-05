@@ -1,4 +1,7 @@
-from GUI import run_app
+from gui import run_app  # Assuming the GUI code is in gui.py
 
-score_value = 85  # Example score from an external process
-run_app(score_value)
+# Example scores
+main_score = 85
+content_analysis_score = 92
+
+run_app(main_score, content_analysis_score)

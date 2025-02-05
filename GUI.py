@@ -2,30 +2,23 @@ import customtkinter as ctk
 import tkinter  # Ensure tkinter is available
 
 # Define global color variables
-BG_COLOR = "#050c30"  # Muted warm purple background
-BUTTON_COLOR = "#13205f"  # Neutral blue button color
+BG_COLOR = "#050c30"
+BUTTON_COLOR = "#13205f"
 
-def run_app(score):
-    """Launches the M.A.I.A GUI with the given score value."""
-    
-    # Set appearance and theme
-    ctk.set_appearance_mode("dark")  # Options: "dark", "light", "system"
-    ctk.set_default_color_theme("blue")
+def create_main_screen(master, score, content_analysis_score):
+    """Creates the main screen layout inside the given master widget."""
+    clear_screen(master)
 
-    # Create the main application window
-    app = ctk.CTk()
-    app.geometry("1920x1080")
-    app.title("M.A.I.A")
-
-    # Background Frame
-    background_frame = ctk.CTkFrame(master=app, fg_color=BG_COLOR, width=1920, height=1080)
-    background_frame.pack(fill="both", expand=True)  # Fill the entire window
+    # Background Frame with BG_COLOR applied
+    background_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
+    background_frame.pack(fill="both", expand=True)
 
     # Title Label
     title_label = ctk.CTkLabel(
         master=background_frame,
         text="M.A.I.A",
-        font=("Segoe UI", 100, "bold")
+        font=("Segoe UI", 100, "bold"),
+        text_color="white"
     )
     title_label.pack(pady=(30, 10))
 
@@ -35,35 +28,58 @@ def run_app(score):
         text="A Multimodal AI Agent for Holistic Interview Preparation",
         font=("Segoe UI", 30),
         wraplength=750,
-        justify="center"
+        justify="center",
+        text_color="white"
     )
     subtitle_label.pack(pady=(0, 20))
 
-    # "Created by" Label (smaller, italicized)
+    # "Created by" Label
     created_by_label = ctk.CTkLabel(
         master=background_frame,
         text="Created by:",
         font=("Segoe UI", 20, "italic"),
-        justify="center"
+        justify="center",
+        text_color="white"
     )
     created_by_label.pack()
 
-    # Names Label (larger, bold for emphasis)
+    # Names Label
     names_label = ctk.CTkLabel(
         master=background_frame,
         text="Anirudh T (21BAI1163)\nMadhuri Santhosh Srinivasan (21BAI1892)",
         font=("Segoe UI", 25),
-        justify="center"
+        justify="center",
+        text_color="white"
     )
-    names_label.pack(pady=(0, 40))  # Added padding below credits
-
-    # Button Frame (for alignment and background consistency)
-    button_frame = ctk.CTkFrame(master=background_frame, fg_color=BG_COLOR)
-    button_frame.pack(pady=(20, 40), fill="x")  # Increased space below buttons
+    names_label.pack(pady=(0, 40))
 
     # Buttons
-    buttons = ["Body Language", "Emotion/Stress Detection", "Content Analysis", "Job Suitability"]
-    for button_text in buttons:
+    create_buttons(background_frame, master, score, content_analysis_score)
+
+    # Score Label
+    score_label = ctk.CTkLabel(
+        master=background_frame,
+        text=f"Your Score: {score}",
+        font=("Segoe UI", 30, "bold"),
+        justify="center",
+        text_color="white"
+    )
+    score_label.pack(pady=(40, 20))
+
+
+def create_buttons(master, app, score, content_analysis_score):
+    """Creates four evenly spaced buttons with rounded corners."""
+    button_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
+    button_frame.pack(pady=(20, 40), fill="x")
+
+    buttons = {
+        "Body Language": lambda: create_work_in_progress_screen(app, score, content_analysis_score),
+        "Emotion/Stress Detection": lambda: create_work_in_progress_screen(app, score, content_analysis_score),
+        "Content Analysis": lambda: create_content_analysis_screen(app, score, content_analysis_score),
+        "Job Suitability": lambda: create_work_in_progress_screen(app, score, content_analysis_score)
+    }
+
+    for button_text, command in buttons.items():
         button = ctk.CTkButton(
             master=button_frame,
             text=button_text,
@@ -72,18 +88,129 @@ def run_app(score):
             width=300,
             height=50,
             fg_color=BUTTON_COLOR,
-            command=lambda button_text=button_text: print(f"Button '{button_text}' clicked")
+            command=command
         )
-        button.pack(side="left", padx=20)  # Evenly spaced buttons
+        button.pack(side="left", padx=20)
 
-    # Score Label (Placed Below Buttons)
-    score_label = ctk.CTkLabel(
+
+def create_work_in_progress_screen(master, score, content_analysis_score):
+    """Displays a 'Work in Progress' screen."""
+    clear_screen(master)
+
+    background_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
+    background_frame.pack(fill="both", expand=True)
+
+    message_label = ctk.CTkLabel(
         master=background_frame,
-        text=f"Your Score: {score}",
-        font=("Segoe UI", 30, "bold"),
-        justify="center"
+        text="We're still working on these features,\ncheck back soon!",
+        font=("Segoe UI", 40, "bold"),
+        justify="center",
+        text_color="white"
     )
-    score_label.pack(pady=(40, 20))  # Spacing before and after
+    message_label.pack(expand=True)
 
-    # Run the application
+    back_button = ctk.CTkButton(
+        master=background_frame,
+        text="Back to Main Screen",
+        font=("Segoe UI", 20, "bold"),
+        corner_radius=20,
+        fg_color=BUTTON_COLOR,
+        command=lambda: create_main_screen(master, score, content_analysis_score)
+    )
+    back_button.pack(pady=20)
+
+
+def create_content_analysis_screen(master, score, content_analysis_score):
+    """Displays the Content Analysis screen."""
+    clear_screen(master)
+
+    # Full background coverage
+    background_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
+    background_frame.pack(fill="both", expand=True)  # Ensures full window coverage
+
+    # Content Frame (for padding & alignment)
+    content_frame = ctk.CTkFrame(master=background_frame, fg_color=BG_COLOR)
+    content_frame.pack(fill="both", expand=True, padx=50, pady=50)  # Added padding
+
+    # Left-aligned Title
+    title_label = ctk.CTkLabel(
+        master=content_frame,
+        text="Content Analysis",
+        font=("Segoe UI", 50, "bold"),
+        justify="left",
+        anchor="w",
+        text_color="white"
+    )
+    title_label.pack(anchor="w", pady=(10, 10))
+
+    # Left-aligned Description
+    description_label = ctk.CTkLabel(
+        master=content_frame,
+        text=(
+            "Take a mock interview and we'll analyze the following from your answers:\n"
+            "• Speech Rate\n"
+            "• Answer Relevance\n"
+            "• Jargon and Filler Word Usage\n"
+            "• Response Confidence"
+        ),
+        font=("Segoe UI", 28),
+        justify="left",
+        anchor="w",
+        text_color="white"
+    )
+    description_label.pack(anchor="w", pady=(10, 20))
+
+    # Content Analysis Score (Centered)
+    score_label = ctk.CTkLabel(
+        master=content_frame,
+        text=f"Your Content Analysis Score: {content_analysis_score}",
+        font=("Segoe UI", 35, "bold"),
+        justify="center",
+        text_color="white"
+    )
+    score_label.pack(pady=(20, 20))
+
+    # Take Test Button (Centered & Bigger)
+    take_test_button = ctk.CTkButton(
+        master=content_frame,
+        text="Take the Content Analysis Test",
+        font=("Segoe UI", 24, "bold"),
+        corner_radius=20,
+        width=400,
+        height=70,
+        fg_color=BUTTON_COLOR,
+        command=lambda: print("Starting Content Analysis Test...")  # Replace with actual functionality
+    )
+    take_test_button.pack(pady=10)
+
+    # ✅ Back Button (Centered Below Take Test Button)
+    back_button = ctk.CTkButton(
+        master=content_frame,
+        text="Back to Main Screen",
+        font=("Segoe UI", 22, "bold"),
+        corner_radius=20,
+        width=300,
+        height=60,
+        fg_color=BUTTON_COLOR,
+        command=lambda: create_main_screen(master, score, content_analysis_score)
+    )
+    back_button.pack(pady=(15, 15))  # Adjusted padding for spacing
+
+def clear_screen(master):
+    """Clears all widgets from the given master widget."""
+    for widget in master.winfo_children():
+        widget.destroy()
+
+
+def run_app(score, content_analysis_score):
+    """Initializes and runs the M.A.I.A application with provided scores."""
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("blue")
+
+    app = ctk.CTk()
+    app.geometry("1920x1080")
+    app.title("M.A.I.A")
+
+    create_main_screen(app, score, content_analysis_score)
+
     app.mainloop()
