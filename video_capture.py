@@ -8,13 +8,14 @@ import time
 from PIL import Image
 from datetime import datetime
 from GUI import clear_screen, create_main_screen
+import random
 
 # Ensure necessary folders exist
 os.makedirs("video", exist_ok=True)
 os.makedirs("audio", exist_ok=True)
 
 class VideoCapture:
-    def __init__(self, master):
+    def __init__(self, master, num_q=5):
         """Initialize video capture inside an existing window."""
         self.master = master
         self.master.title("M.A.I.A - Interview Preparation")
@@ -36,8 +37,11 @@ class VideoCapture:
             "Tell me about a time you made a mistake at work. How did you resolve the problem, and what did you learn from your mistake?",
             "Give an example of a time when you had to make a difficult decision. How did you handle it?",
             "Tell me about settling into your last job. What did you do to learn the ropes?",
-
+            "Tell me about a time when you had to make a decision without all the information you needed.",
+            "Tell me about a time you failed. How did you deal with the situation?",
+            "Tell me about a situation when you had a conflict with a teammate."
         ]
+        self.selected_questions = random.sample(self.questions, min(num_q, len(self.questions)))
         self.current_question = 0
 
         self.video_filename = None
@@ -65,7 +69,7 @@ class VideoCapture:
         self.control_frame = ctk.CTkFrame(self.top_frame, width=550, fg_color="#050c30")
         self.control_frame.pack(side="right", fill="y", padx=10, pady=10)
       
-        self.question_label = ctk.CTkLabel(self.control_frame, text=self.questions[self.current_question], wraplength=180)
+        self.question_label = ctk.CTkLabel(self.control_frame, text=self.selected_questions[self.current_question], wraplength=180)
         self.question_label.pack(pady=20)
 
         self.next_question_btn = ctk.CTkButton(self.control_frame, text="Next Question", command=self.next_question, fg_color="#1e349e", hover_color="#13205f")
@@ -177,9 +181,12 @@ class VideoCapture:
         wf.close()
 
     def next_question(self):
-        """Switches to the next interview question."""
-        self.current_question = (self.current_question + 1) % len(self.questions)
-        self.question_label.configure(text=self.questions[self.current_question])
+        """Displays the next question in the randomly selected list."""
+        if self.current_question < len(self.selected_questions) - 1:  # Ensure we don't exceed the list
+            self.current_question += 1
+            self.question_label.configure(text=self.selected_questions[self.current_question])
+        else:
+            self.next_question_btn.configure(state="disabled")  # Disable button after last question
 
     def stop_camera(self):
         """Stops video and audio recording."""
@@ -194,13 +201,14 @@ class VideoCapture:
 
             self.video_label.configure(image=None, text="Video feed")
             self.video_label.image = None
-            print("Video and audio recording stopped and saved.")
+            print("Video and audio recording stopped.")
 
     def end_test(self):
         """Ends test, deletes files, and returns to main menu."""
         if self.running:
-            self.stop_camera()            
-            self.audio_stream.stop_stream()
+            self.stop_camera()          
+            if self.audio_stream.is_active():
+                self.audio_stream.stop_stream()  
             self.audio_stream.close()
             time.sleep(0.5)
 
