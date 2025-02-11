@@ -7,24 +7,23 @@ import os
 import time
 from PIL import Image
 from datetime import datetime
+from GUI import clear_screen, create_main_screen
 
-# Ensure folders exist
+# Ensure necessary folders exist
 os.makedirs("video", exist_ok=True)
 os.makedirs("audio", exist_ok=True)
 
-class VideoCapture(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("M.A.I.A - Interview Preparation")
-        self.geometry("800x600")
-        self.minsize(600, 400)
+class VideoCapture:
+    def __init__(self, master):
+        """Initialize video capture inside an existing window."""
+        self.master = master
+        self.master.title("M.A.I.A - Interview Preparation")
 
-        # Video capture and writer
+        # Video and audio variables
         self.cap = None
         self.writer = None
         self.running = False
 
-        # Audio variables
         self.audio_stream = None
         self.audio_frames = []
         self.audio_running = False
@@ -36,40 +35,51 @@ class VideoCapture(ctk.CTk):
         ]
         self.current_question = 0
 
+        self.video_filename = None
+        self.audio_filename = None
+
         self.create_widgets()
 
     def create_widgets(self):
-        self.container = ctk.CTkFrame(self)
+        """Creates UI elements for video capture."""
+        self.container = ctk.CTkFrame(self.master, fg_color="#050c30")
         self.container.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.top_frame = ctk.CTkFrame(self.container)
+        self.top_frame = ctk.CTkFrame(self.container, fg_color="#091654")
         self.top_frame.pack(side="top", fill="both", expand=True)
 
-        self.video_frame = ctk.CTkFrame(self.top_frame)
+        self.video_frame = ctk.CTkFrame(self.top_frame, fg_color="#050c30")
         self.video_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        
+        self.warning_label = ctk.CTkLabel(self.video_frame, text="", text_color="black")
+        self.warning_label.pack(padx=10, pady=10)
 
         self.video_label = ctk.CTkLabel(self.video_frame, text="Video Feed")
         self.video_label.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.control_frame = ctk.CTkFrame(self.top_frame, width=200)
+        self.control_frame = ctk.CTkFrame(self.top_frame, width=200, fg_color="#050c30")
         self.control_frame.pack(side="right", fill="y", padx=10, pady=10)
-
+      
         self.question_label = ctk.CTkLabel(self.control_frame, text=self.questions[self.current_question], wraplength=180)
         self.question_label.pack(pady=20)
 
-        self.next_question_btn = ctk.CTkButton(self.control_frame, text="Next Question", command=self.next_question)
+        self.next_question_btn = ctk.CTkButton(self.control_frame, text="Next Question", command=self.next_question, fg_color="#1e349e", hover_color="#13205f")
         self.next_question_btn.pack(pady=10)
 
-        self.start_cam_btn = ctk.CTkButton(self.control_frame, text="Start Camera", command=self.start_camera)
+        self.start_cam_btn = ctk.CTkButton(self.control_frame, text="Start Camera", command=self.start_camera, fg_color="#1e349e", hover_color="#13205f")
         self.start_cam_btn.pack(pady=10)
 
-        self.bottom_frame = ctk.CTkFrame(self.container, height=50)
+        self.bottom_frame = ctk.CTkFrame(self.container, height=50, fg_color="#050c30")
         self.bottom_frame.pack(side="bottom", fill="x", padx=10, pady=10)
 
-        self.submit_btn = ctk.CTkButton(self.bottom_frame, text="Submit Video", command=self.stop_camera)
-        self.submit_btn.pack(pady=10)
+        self.submit_btn = ctk.CTkButton(self.bottom_frame, text="Submit Video", command=self.stop_camera, fg_color="#1e349e", hover_color="#13205f")
+        self.submit_btn.pack(side="left", padx=20, pady=10)
+
+        self.end_test_btn = ctk.CTkButton(self.bottom_frame, text="End Test", fg_color="red", hover_color="#91071c", command=self.end_test)
+        self.end_test_btn.pack(side="right", padx=20, pady=10)
 
     def start_camera(self):
+        """Starts video and audio recording."""
         if not self.running:
             self.cap = cv2.VideoCapture(0)
             if not self.cap.isOpened():
@@ -84,9 +94,9 @@ class VideoCapture(ctk.CTk):
             self.writer = cv2.VideoWriter(self.video_filename, fourcc, fps, frame_size)
 
             self.running = True
+            self.start_time = time.time()  # Track start time
             print(f"Recording started: {self.video_filename}")
 
-            # Start video thread
             threading.Thread(target=self.update_frame, daemon=True).start()
 
             # Start audio recording
@@ -96,6 +106,20 @@ class VideoCapture(ctk.CTk):
             threading.Thread(target=self.record_audio, daemon=True).start()
 
     def update_frame(self):
+        """Updates video frame in the GUI."""
+        fin = time.time() - self.start_time
+        
+        if 50 <= time.time() - self.start_time < 60: 
+            rem = 60 - fin
+            self.warning_label.configure(fg_color="yellow", text=f"⚠️ Recording will stop in {int(rem)} seconds! ", text_color="black")
+            
+        elif time.time() - self.start_time >= 60:  # Stop after 1 minute
+            print("1-minute recording limit reached. Stopping...")
+            self.warning_label.configure(fg_color = "green", text = "The test has concluded! :) ")
+            self.stop_camera()
+            self.master.after(1500, lambda: self.warning_label.configure(fg_color = "#050c30",text = ""))
+            return
+
         if self.running and self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
@@ -104,19 +128,22 @@ class VideoCapture(ctk.CTk):
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(frame_rgb)
 
-                label_width = self.video_label.winfo_width() or 640
-                label_height = self.video_label.winfo_height() or 480
-                img = img.resize((label_width, label_height))
+                if (self.video_label.winfo_width()!=0 and self.video_label.winfo_height()):
+                    label_width = self.video_label.winfo_width() or 640
+                    label_height = self.video_label.winfo_height() or 480
+                    img = img.resize((label_width, label_height))
+                else:
+                    time.sleep(0.3)
 
                 ctk_img = ctk.CTkImage(dark_image=img, size=(label_width, label_height))
                 self.video_label.configure(image=ctk_img, text="")
                 self.video_label.image = ctk_img  # Keep reference
 
-            # Avoid CPU overload
             time.sleep(0.01)
-            self.after(30, self.update_frame)
+            self.master.after(30, self.update_frame)
 
     def record_audio(self):
+        """Records audio while video is being recorded."""
         p = pyaudio.PyAudio()
         self.audio_stream = p.open(format=pyaudio.paInt16,
                                    channels=1,
@@ -125,11 +152,14 @@ class VideoCapture(ctk.CTk):
                                    frames_per_buffer=1024)
 
         while self.audio_running:
+            elapsed_time = time.time() - self.start_time  # Check elapsed time
+            if elapsed_time >= 60:  # Stop recording after 1 minute
+                self.audio_running = False
+                break
             data = self.audio_stream.read(1024, exception_on_overflow=False)
             self.audio_frames.append(data)
-            time.sleep(0.01)  # Prevent CPU overload
+            time.sleep(0.01)
 
-        # Stop and save audio
         self.audio_stream.stop_stream()
         self.audio_stream.close()
         p.terminate()
@@ -140,13 +170,14 @@ class VideoCapture(ctk.CTk):
         wf.setframerate(44100)
         wf.writeframes(b''.join(self.audio_frames))
         wf.close()
-        print("Audio saved:", self.audio_filename)
 
     def next_question(self):
+        """Switches to the next interview question."""
         self.current_question = (self.current_question + 1) % len(self.questions)
         self.question_label.configure(text=self.questions[self.current_question])
 
     def stop_camera(self):
+        """Stops video and audio recording."""
         if self.running:
             self.running = False
             if self.cap:
@@ -154,13 +185,32 @@ class VideoCapture(ctk.CTk):
             if self.writer:
                 self.writer.release()
 
-            # Stop audio recording
             self.audio_running = False
 
             self.video_label.configure(image=None, text="Video feed")
             self.video_label.image = None
             print("Video and audio recording stopped and saved.")
 
+    def end_test(self):
+        """Ends test, deletes files, and returns to main menu."""
+        if self.running:
+            self.stop_camera()            
+            self.audio_stream.stop_stream()
+            self.audio_stream.close()
+            time.sleep(0.5)
+
+        # Delete video and audio files
+        if self.video_filename and os.path.exists(self.video_filename):
+            os.remove(self.video_filename)
+        if self.audio_filename and os.path.exists(self.audio_filename):
+            os.remove(self.audio_filename)
+
+        print("Test ended, returning to main screen.")
+        clear_screen(self.master)
+        create_main_screen(self.master)
+
 if __name__ == "__main__":
-    app = VideoCapture()
-    app.mainloop()
+    root = ctk.CTk()
+    root.geometry("1420x800")
+    VideoCapture(root)  
+    root.mainloop()
