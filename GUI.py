@@ -3,7 +3,7 @@ import tkinter  # Ensure tkinter is available
 
 # Define global color variables
 BG_COLOR = "#050c30"
-BUTTON_COLOR = "#13205f"
+BUTTON_COLOR = "#162884"
 
 def create_main_screen(master, score=0, content_analysis_score=0):
     """Creates the main screen layout inside the given master widget."""
@@ -64,12 +64,21 @@ def create_main_screen(master, score=0, content_analysis_score=0):
         justify="center",
         text_color="white"
     )
-    score_label.place(relx=0.5, rely=0.68, anchor="center")
+    score_label.place(relx=0.5, rely=0.80, anchor="center")
+    
+    best_score_label = ctk.CTkLabel(
+        master=background_frame,
+        text=f"Best Score: {score}",
+        font=("Segoe UI", 30, "bold"),
+        justify="center",
+        text_color="white"
+    )
+    best_score_label.place(relx=0.5, rely=0.87, anchor="center")
 
 def create_buttons(master, app, score, content_analysis_score):
     """Creates four evenly spaced buttons with rounded corners."""
     button_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
-    button_frame.place(relx=0.5, rely=0.5, anchor="center")  # 80% width of the window
+    button_frame.place(relx=0.5, rely=0.65, anchor="center")  # 80% width of the window
     
     buttons = {
         "Body Language": lambda: create_work_in_progress_screen(app, score, content_analysis_score),
@@ -84,12 +93,12 @@ def create_buttons(master, app, score, content_analysis_score):
             text=button_text,
             font=("Segoe UI", 18, "bold"),
             corner_radius=20,
-            width=300,
+            width=250,
             height=50,
             fg_color=BUTTON_COLOR,
             command=command
         )
-        button.pack(side="left", padx=20)  
+        button.pack(side="left", padx=15)  
 
 def create_work_in_progress_screen(master, score, content_analysis_score):
     """Displays a 'Work in Progress' screen."""
@@ -167,6 +176,15 @@ def create_content_analysis_screen(master, score, content_analysis_score):
         text_color="white"
     )
     score_label.pack(pady=(20, 20))
+    # Content Analysis Score (Centered)
+    best_score_label = ctk.CTkLabel(
+        master=content_frame,
+        text=f"Best Score: {content_analysis_score}",
+        font=("Segoe UI", 35, "bold"),
+        justify="center",
+        text_color="white"
+    )
+    best_score_label.pack(pady=(10, 20))
 
     # Take Test Button (Centered & Bigger)
     take_test_button = ctk.CTkButton(
