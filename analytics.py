@@ -6,7 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 class InterviewPerformanceGraph(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master, fg_color="#050c30")  # Set frame background color
-        self.pack(fill="both", expand=True, padx=20, pady=20)
+        self.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Generate synthetic data
         self.x_values = np.arange(1, 11)
@@ -20,8 +20,8 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
         # Create and display the graph
         self.create_graph()
 
-        # Create "Back" button
-        self.create_back_button()
+        # Create buttons
+        self.create_buttons()
 
     def create_graph(self):
         fig, ax = plt.subplots(figsize=(12, 7))
@@ -37,16 +37,16 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
         ax.plot(self.x_values, self.body_language_score, marker='o', linestyle='-', 
                 label="Body Language", color='#125282')
         ax.plot(self.x_values, self.content_score, marker='s', linestyle='-', 
-                label="Content", color='#316b41')
+                label="Content Analysis", color='#316b41')
         ax.plot(self.x_values, self.emotion_score, marker='^', linestyle='-', 
-                label="Emotion", color='#781c2e')
+                label="Emotion Detection", color='#781c2e')
         ax.plot(self.x_values, self.job_suitability_score, marker='d', linestyle='-', 
                 label="Job Suitability", color='#663c2c')
         ax.plot(self.x_values, self.combined_score, marker='*', linestyle='-', 
-                linewidth=3, label="Combined Score", color='#c916c9')
+                linewidth=3, label="Overall Score", color='#c916c9')
 
         # Set labels and title
-        ax.set_xlabel("Session Number", color="white")
+        ax.set_xlabel("Session", color="white")
         ax.set_ylabel("Score (%)", color="white")
         ax.set_title("Interview Performance Over Time", color="white")
 
@@ -64,12 +64,14 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
 
         # Embed the Matplotlib figure inside CustomTkinter
         canvas = FigureCanvasTkAgg(fig, master=self)
-        canvas.get_tk_widget().place(relx=0.5, rely=0.45, anchor="center")
+        canvas.get_tk_widget().place(relx=0.5, rely=0.4, anchor="center")
 
         plt.close(fig)  # Prevent memory issues
 
-    def create_back_button(self):
-        # Create the "Back" button with the specified size and formatting
+    def create_buttons(self):
+        """Creates the Back and Reset Scores buttons."""
+
+        # Create "Back" button
         back_button = ctk.CTkButton(self, 
                                     text="Back", 
                                     fg_color="#1e3a8a", 
@@ -78,19 +80,35 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
                                     font=("Segoe UI", 18), 
                                     corner_radius=20, 
                                     width=300, 
-                                    height=50, 
+                                    height=40, 
                                     command=self.go_back)
-        back_button.place(relx=0.5, rely=0.9, anchor="center")  # Centered below graph
+        back_button.place(relx=0.5, rely=0.85, anchor="center")  # Centered below graph
 
+        # Create "Reset Scores" button (identical to Back button)
+        reset_button = ctk.CTkButton(self, 
+                                     text="Reset Scores", 
+                                     fg_color="#1e3a8a", 
+                                     text_color="white", 
+                                     hover_color="#3b5998", 
+                                     font=("Segoe UI", 18), 
+                                     corner_radius=20, 
+                                     width=300, 
+                                     height=40, 
+                                     command=self.reset_all_scores)
+        reset_button.place(relx=0.5, rely=0.93, anchor="center")  # Slightly below Back button
 
     def go_back(self):
-        # Placeholder for back button functionality
+        """Handles back button click event."""
         print("Back button clicked")
+
+    def reset_all_scores(self):
+        """Handles reset scores button click event."""
+        print("Reset Scores button clicked - Implement score reset logic here.")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("dark")
     app = ctk.CTk()
-    app.geometry("900x600")  # Increased width for legend space
+    app.geometry("1920x1080")  # Increased width for legend space
     app.title("M.A.I.A Performance Graph")
     app.configure(fg_color="#050c30")  # Set window background color
 
