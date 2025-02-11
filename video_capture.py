@@ -30,8 +30,13 @@ class VideoCapture:
 
         self.questions = [
             "Tell me about yourself.",
-            "What are your strengths and weaknesses?",
-            "Why do you want this job?"
+            "Tell me about a time when you demonstrated leadership?",
+            "Tell me about a time when you were working with a team and faced a challenge. How did you overcome the problem?",
+            "What is one of your weaknesses and how do you plan to overcome it?",
+            "Tell me about a time you made a mistake at work. How did you resolve the problem, and what did you learn from your mistake?",
+            "Give an example of a time when you had to make a difficult decision. How did you handle it?",
+            "Tell me about settling into your last job. What did you do to learn the ropes?",
+
         ]
         self.current_question = 0
 
@@ -57,7 +62,7 @@ class VideoCapture:
         self.video_label = ctk.CTkLabel(self.video_frame, text="Video Feed")
         self.video_label.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.control_frame = ctk.CTkFrame(self.top_frame, width=200, fg_color="#050c30")
+        self.control_frame = ctk.CTkFrame(self.top_frame, width=550, fg_color="#050c30")
         self.control_frame.pack(side="right", fill="y", padx=10, pady=10)
       
         self.question_label = ctk.CTkLabel(self.control_frame, text=self.questions[self.current_question], wraplength=180)
