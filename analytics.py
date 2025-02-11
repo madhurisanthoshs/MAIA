@@ -20,8 +20,11 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
         # Create and display the graph
         self.create_graph()
 
+        # Create "Back" button
+        self.create_back_button()
+
     def create_graph(self):
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(12, 7))
 
         # Set figure and graph background colors
         fig.patch.set_facecolor("#13205f")
@@ -39,7 +42,8 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
                 label="Emotion", color='#781c2e')
         ax.plot(self.x_values, self.job_suitability_score, marker='d', linestyle='-', 
                 label="Job Suitability", color='#663c2c')
-        ax.plot(self.x_values, self.combined_score, marker='*', linestyle='-', label="Combined Score", color='#c916c9')
+        ax.plot(self.x_values, self.combined_score, marker='*', linestyle='-', 
+                linewidth=3, label="Combined Score", color='#c916c9')
 
         # Set labels and title
         ax.set_xlabel("Session Number", color="white")
@@ -60,9 +64,28 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
 
         # Embed the Matplotlib figure inside CustomTkinter
         canvas = FigureCanvasTkAgg(fig, master=self)
-        canvas.get_tk_widget().place(relx=0.5, rely=0.5, anchor="center")
+        canvas.get_tk_widget().place(relx=0.5, rely=0.45, anchor="center")
 
         plt.close(fig)  # Prevent memory issues
+
+    def create_back_button(self):
+        # Create the "Back" button with the specified size and formatting
+        back_button = ctk.CTkButton(self, 
+                                    text="Back", 
+                                    fg_color="#1e3a8a", 
+                                    text_color="white", 
+                                    hover_color="#3b5998", 
+                                    font=("Segoe UI", 18), 
+                                    corner_radius=20, 
+                                    width=300, 
+                                    height=50, 
+                                    command=self.go_back)
+        back_button.place(relx=0.5, rely=0.9, anchor="center")  # Centered below graph
+
+
+    def go_back(self):
+        # Placeholder for back button functionality
+        print("Back button clicked")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("dark")
