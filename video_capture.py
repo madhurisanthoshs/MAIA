@@ -138,8 +138,8 @@ class VideoCapture:
                 img = Image.fromarray(frame_rgb)
 
                 if (self.video_label.winfo_width()!=0 and self.video_label.winfo_height()):
-                    label_width = 640
-                    label_height = 480
+                    label_width = 640 #self.video_label.winfo_width() or 640
+                    label_height = 480 #self.video_label.winfo_height() or 480
                     img = img.resize((label_width, label_height))
                 else:
                     time.sleep(0.3)
