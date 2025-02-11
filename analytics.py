@@ -21,7 +21,7 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
         self.create_graph()
 
     def create_graph(self):
-        fig, ax = plt.subplots(figsize=(9, 6))
+        fig, ax = plt.subplots(figsize=(12, 8))
 
         # Set figure and graph background colors
         fig.patch.set_facecolor("#13205f")
