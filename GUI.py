@@ -5,7 +5,7 @@ import tkinter  # Ensure tkinter is available
 BG_COLOR = "#050c30"
 BUTTON_COLOR = "#13205f"
 
-def create_main_screen(master, score, content_analysis_score):
+def create_main_screen(master, score=0, content_analysis_score=0):
     """Creates the main screen layout inside the given master widget."""
     clear_screen(master)
 
@@ -64,21 +64,20 @@ def create_main_screen(master, score, content_analysis_score):
         justify="center",
         text_color="white"
     )
-    score_label.pack(pady=(40, 20))
-
+    score_label.place(relx=0.5, rely=0.68, anchor="center")
 
 def create_buttons(master, app, score, content_analysis_score):
     """Creates four evenly spaced buttons with rounded corners."""
     button_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
-    button_frame.pack(pady=(20, 40), fill="x")
-
+    button_frame.place(relx=0.5, rely=0.5, anchor="center")  # 80% width of the window
+    
     buttons = {
         "Body Language": lambda: create_work_in_progress_screen(app, score, content_analysis_score),
         "Emotion/Stress Detection": lambda: create_work_in_progress_screen(app, score, content_analysis_score),
         "Content Analysis": lambda: create_content_analysis_screen(app, score, content_analysis_score),
         "Job Suitability": lambda: create_work_in_progress_screen(app, score, content_analysis_score)
     }
-
+    
     for button_text, command in buttons.items():
         button = ctk.CTkButton(
             master=button_frame,
@@ -90,8 +89,7 @@ def create_buttons(master, app, score, content_analysis_score):
             fg_color=BUTTON_COLOR,
             command=command
         )
-        button.pack(side="left", padx=20)
-
+        button.pack(side="left", padx=20)  
 
 def create_work_in_progress_screen(master, score, content_analysis_score):
     """Displays a 'Work in Progress' screen."""
@@ -200,9 +198,8 @@ def clear_screen(master):
     """Clears all widgets from the given master widget."""
     for widget in master.winfo_children():
         widget.destroy()
-
-
-def run_app(score, content_analysis_score):
+        
+def run_app(score=0, content_analysis_score=0):
     """Initializes and runs the M.A.I.A application with provided scores."""
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
