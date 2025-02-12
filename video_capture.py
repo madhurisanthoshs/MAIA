@@ -7,7 +7,8 @@ import os
 import time
 from PIL import Image
 from datetime import datetime
-from GUI import clear_screen, create_main_screen
+from GUI_main_screen import create_main_screen
+from utils import clear_screen
 import random
 
 # Ensure necessary folders exist
