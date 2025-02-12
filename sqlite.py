@@ -98,12 +98,27 @@ def get_recent_and_best_score(table_name, db_name="maia_scores.db"):
     connection.close()
     return recent_score, best_score
 
-# if __name__ == "__main__":
-#     create_score_tables()
-#     insert_score("overall", 85)
+if __name__ == "__main__":
+    create_score_tables()
+    insert_score("overall", 85)
+    time.sleep(1)
+    insert_score("overall", 95)
+    insert_score("content_analysis",75)
+    time.sleep(1)
+    insert_score("content_analysis",45)
+    insert_score("body_language", 23)
+    time.sleep(1)
+    insert_score("body_language", 40)
+    insert_score("emotion_detection", 30)
+    time.sleep(1)
+    insert_score("emotion_detection", 60)
+    insert_score("job_suitability", 0)
+    time.sleep(1)
+    insert_score("job_suitability", 100)
+
 #     time.sleep(2)
 #     insert_score("overall", 70)
-#     print_all_scores()
+    print_all_scores()
 #     r,b=get_recent_and_best_score("overall")
-#     reset_all_scores()
+    #reset_all_scores()
 #     print(r,b)
