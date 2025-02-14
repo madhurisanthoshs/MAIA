@@ -6,12 +6,12 @@ from video_capture import start_test
 BG_COLOR = "#050c30"
 BUTTON_COLOR = "#162884"
 
-def create_content_analysis_screen(master, back_to_main):
-    """Displays the Content Analysis screen."""
+def create_emotion_detection_screen(master, back_to_main):
+    """Displays the emotion detection screen."""
     clear_screen(master)
 
     # Fetch scores dynamically
-    recent_score, best_score = get_recent_and_best_score("content_analysis")
+    recent_score, best_score = get_recent_and_best_score("emotion_detection")
 
     background_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
     background_frame.pack(fill="both", expand=True)
@@ -20,7 +20,7 @@ def create_content_analysis_screen(master, back_to_main):
     content_frame.pack(fill="both", expand=True, padx=50, pady=50)
 
     title_label = ctk.CTkLabel(
-        master=content_frame, text="Content Analysis",
+        master=content_frame, text="Emotion and Stress Detection",
         font=("Segoe UI", 50, "bold"), text_color="white"
     )
     title_label.pack(anchor="w", pady=(10, 10))
@@ -29,10 +29,9 @@ def create_content_analysis_screen(master, back_to_main):
         master=content_frame,
         text=(
             "Take a mock interview and we'll analyze the following:\n"
-            "• Speech Rate\n"
-            "• Answer Relevance\n"
-            "• Jargon and Filler Word Usage\n"
-            "• Response Confidence"
+            "• Speech Emotion Detection\n"
+            "• Stress Detection\n"
+            "• Eye Gaze and Blink Detection\n"
         ),
         font=("Segoe UI", 28), text_color="white",
         anchor="w", justify="left", wraplength=750
@@ -41,7 +40,7 @@ def create_content_analysis_screen(master, back_to_main):
 
     # ✅ Dynamically Updated Score Labels
     score_label = ctk.CTkLabel(
-        master=content_frame, text=f"Your Content Analysis Score: {recent_score if recent_score is not None else 'N/A'}",
+        master=content_frame, text=f"Your Emotion Detection Score: {recent_score if recent_score is not None else 'N/A'}",
         font=("Segoe UI", 35, "bold"), text_color="white"
     )
     score_label.pack(pady=(20, 5))
@@ -53,7 +52,7 @@ def create_content_analysis_screen(master, back_to_main):
     best_score_label.pack(pady=(20, 5))
 
     take_test_button = ctk.CTkButton(
-        master=content_frame, text="Take the Content Analysis Test",
+        master=content_frame, text="Take the Emotion Detection Test",
         font=("Segoe UI", 24, "bold"), fg_color=BUTTON_COLOR,
         command=lambda: start_test(master, back_callback=back_to_main)  # Pass main screen callback
     )

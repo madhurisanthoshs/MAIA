@@ -6,12 +6,12 @@ from video_capture import start_test
 BG_COLOR = "#050c30"
 BUTTON_COLOR = "#162884"
 
-def create_content_analysis_screen(master, back_to_main):
-    """Displays the Content Analysis screen."""
+def create_job_suitability_screen(master, back_to_main):
+    """Displays the job suitability screen."""
     clear_screen(master)
 
     # Fetch scores dynamically
-    recent_score, best_score = get_recent_and_best_score("content_analysis")
+    recent_score, best_score = get_recent_and_best_score("job_suitability")
 
     background_frame = ctk.CTkFrame(master=master, fg_color=BG_COLOR)
     background_frame.pack(fill="both", expand=True)
@@ -20,7 +20,7 @@ def create_content_analysis_screen(master, back_to_main):
     content_frame.pack(fill="both", expand=True, padx=50, pady=50)
 
     title_label = ctk.CTkLabel(
-        master=content_frame, text="Content Analysis",
+        master=content_frame, text="Job Suitability",
         font=("Segoe UI", 50, "bold"), text_color="white"
     )
     title_label.pack(anchor="w", pady=(10, 10))
@@ -28,20 +28,24 @@ def create_content_analysis_screen(master, back_to_main):
     description_label = ctk.CTkLabel(
         master=content_frame,
         text=(
-            "Take a mock interview and we'll analyze the following:\n"
-            "• Speech Rate\n"
-            "• Answer Relevance\n"
-            "• Jargon and Filler Word Usage\n"
-            "• Response Confidence"
+            "Share a job description and take a mock interview—we'll assess your answers and show how well you fit the role."
         ),
         font=("Segoe UI", 28), text_color="white",
         anchor="w", justify="left", wraplength=750
     )
     description_label.pack(anchor="w", pady=(10, 10))
 
+    # Job Description Input Box
+    job_description_box = ctk.CTkTextbox(
+        master=content_frame, height=110, width=750, font=("Segoe UI", 20),
+        fg_color=BUTTON_COLOR, text_color="white"
+    )
+    job_description_box.insert("1.0", "Paste your job description here...")
+    job_description_box.pack(pady=(10, 10))
+
     # ✅ Dynamically Updated Score Labels
     score_label = ctk.CTkLabel(
-        master=content_frame, text=f"Your Content Analysis Score: {recent_score if recent_score is not None else 'N/A'}",
+        master=content_frame, text=f"Your Role Fit Score: {recent_score if recent_score is not None else 'N/A'}",
         font=("Segoe UI", 35, "bold"), text_color="white"
     )
     score_label.pack(pady=(20, 5))
@@ -52,10 +56,15 @@ def create_content_analysis_screen(master, back_to_main):
     )
     best_score_label.pack(pady=(20, 5))
 
+    def handle_take_test():
+        job_description = job_description_box.get("1.0", "end").strip()
+        start_test(master, back_callback=back_to_main)
+        print(job_description)
+
     take_test_button = ctk.CTkButton(
-        master=content_frame, text="Take the Content Analysis Test",
+        master=content_frame, text="Take the Job Suitability Test",
         font=("Segoe UI", 24, "bold"), fg_color=BUTTON_COLOR,
-        command=lambda: start_test(master, back_callback=back_to_main)  # Pass main screen callback
+        command=handle_take_test  # Pass job description to test
     )
     take_test_button.pack(pady=5)
 
