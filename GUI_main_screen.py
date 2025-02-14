@@ -1,5 +1,7 @@
 import customtkinter as ctk
 from GUI_content_analysis import create_content_analysis_screen
+from GUI_emotion_detection import create_emotion_detection_screen
+from GUI_job_suitability import create_job_suitability_screen
 from GUI_analytics import create_analytics_screen
 from utils import clear_screen
 from sqlite import get_recent_and_best_score  # Fetch scores dynamically
@@ -63,9 +65,9 @@ def create_buttons(master, app):
 
     buttons = {
         "Body Language": lambda: create_work_in_progress_screen(app),
-        "Emotion/Stress Detection": lambda: create_work_in_progress_screen(app),
+        "Emotion/Stress Detection": lambda: create_emotion_detection_screen(app, create_main_screen),
         "Content Analysis": lambda: create_content_analysis_screen(app, create_main_screen),
-        "Job Suitability": lambda: create_work_in_progress_screen(app)
+        "Job Suitability": lambda: create_job_suitability_screen(app, create_main_screen)
     }
 
     for button_text, command in buttons.items():

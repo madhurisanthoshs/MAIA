@@ -7,7 +7,7 @@ import os
 import time
 from PIL import Image
 from datetime import datetime
-from GUI_main_screen import create_main_screen
+#from GUI_main_screen import create_main_screen
 from utils import clear_screen
 import random
 
@@ -17,9 +17,10 @@ os.makedirs("audio", exist_ok=True)
 
 
 class VideoCapture:
-    def __init__(self, master, num_q=5):
+    def __init__(self, master, num_q=5, back_callback=None):
         """Initialize video capture inside an existing window."""
         self.master = master
+        self.back_callback = back_callback
         self.master.title("M.A.I.A - Interview Preparation")
 
         # Video and audio variables
@@ -237,7 +238,9 @@ class VideoCapture:
         self.audio_running = False
 
     def submit_test(self):
-        print("Nothing. For now...")
+        clear_screen(self.master)
+        if self.back_callback:
+            self.back_callback(self.master)  # Use callback to return to main screen
 
     def end_test(self):
         """Ends test, deletes files, and returns to main menu."""
@@ -248,7 +251,7 @@ class VideoCapture:
                     if self.audio_stream.is_active():
                         self.audio_stream.stop_stream()
                 except OSError:
-                    print("OSError because the stream wasnt recording/wasnt done recording or smn(madhuri)")            
+                    print("OSError due to recording stream state")            
                 self.audio_stream.close()     
 
         # Delete video and audio files
@@ -258,10 +261,16 @@ class VideoCapture:
 
         print("Test ended, returning to main screen.")
         clear_screen(self.master)
-        create_main_screen(self.master)
+        if self.back_callback:
+            self.back_callback(self.master)
 
-if __name__ == "__main__":
-    root = ctk.CTk()
-    root.geometry("1420x800")
-    VideoCapture(root)  
-    root.mainloop()
+# if __name__ == "__main__":
+#     root = ctk.CTk()
+#     root.geometry("1420x800")
+#     VideoCapture(root)  
+#     root.mainloop()
+
+def start_test(master, back_callback):
+    """Clears the screen and starts the Video Capture screen."""
+    clear_screen(master)  # Ensure old content is removed
+    VideoCapture(master, back_callback=back_callback)  # Initialize Video Capture
