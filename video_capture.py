@@ -24,15 +24,16 @@ class VideoCapture:
         self.master.title("M.A.I.A - Interview Preparation")
 
         # Video and audio variables
-        self.cap = None
+        self.cap = cv2.VideoCapture(0)
         self.writer = None
         self.running = False
-
+        self.audio_running = False
+        self.width, self.height = int(self.cap.get(3)), int(self.cap.get(4))
+        self.fps = 30.0 
+        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.audio_stream = None
         self.audio_frames = []
-        self.audio_running = False
-        self.stop_event = threading.Event()
-
+        self.master.protocol("WM_DELETE_WINDOW", self.quit_scr)
         self.questions = [
             "Tell me about yourself.",
             "Tell me about a time when you demonstrated leadership?",
@@ -45,12 +46,19 @@ class VideoCapture:
             "Tell me about a time you failed. How did you deal with the situation?",
             "Tell me about a situation when you had a conflict with a teammate."
         ]
+
         self.selected_questions = [self.questions[random.randint(0, len(self.questions) - 1)] for _ in range(num_q)]
         self.current_question = 0
-        self.limit_reached = False
 
-        self.video_filename = None
-        self.audio_filename = None
+        self.timer = None
+
+        self.count = 10
+        self.countdown_id = None
+
+        self.uf_id = None
+
+        self.video_filename = self.get_new_filename("video", "vid", "avi")
+        self.audio_filename = self.get_new_filename("audio", "aud", "wav")
 
         self.create_widgets()
 
@@ -80,7 +88,7 @@ class VideoCapture:
         self.next_question_btn = ctk.CTkButton(self.control_frame, text="Next Question", command=self.next_question, fg_color="#1e349e", hover_color="#13205f", state="disabled")
         self.next_question_btn.pack(pady=10)
 
-        self.start_cam_btn = ctk.CTkButton(self.control_frame, text="Start Camera", command=self.start_camera, fg_color="#1e349e", hover_color="#13205f")
+        self.start_cam_btn = ctk.CTkButton(self.control_frame, text="Start Test", command=self.start_camera, fg_color="#1e349e", hover_color="#13205f")
         self.start_cam_btn.pack(pady=10)
 
         self.bottom_frame = ctk.CTkFrame(self.container, height=50, fg_color="#050c30")
@@ -89,88 +97,64 @@ class VideoCapture:
         self.end_test_btn = ctk.CTkButton(self.bottom_frame, text="End Test", fg_color="red", hover_color="#91071c", command=self.end_test)
         self.end_test_btn.pack(side="right", padx=20, pady=10)
 
+        self.update_frame()
+
+    def countdown(self):
+        if self.count > 0 :
+            self.warning_label.configure(fg_color="yellow", text=f"⚠️ Recording will stop in {self.count} seconds!", text_color="black")
+            self.count -= 1
+            self.countdown_id = self.master.after(1000, self.countdown) 
+        else:
+            self.stop_camera()
+            print(f"Saved video: {self.video_filename}")
+            print(f"Saved audio: {self.audio_filename}")
+            self.warning_label.configure(text = "Press go to continue >:(")
+
+
     def start_camera(self):
         """Starts video and audio recording with improved logic."""
-        if not self.running:
-            self.running = True
-            self.audio_running = True  
-            self.stop_event.clear()
-            self.start_cam_btn.configure(state="disabled")  
-            self.next_question_btn.configure(state="normal")  
+        if not self.running:           
+            self.video_filename = self.get_new_filename("video","vid", "avi")
+            self.audio_filename = self.get_new_filename("audio","aud", "wav")
 
-            # Release previous camera instance before reinitializing
-            if self.cap is not None:
-                self.cap.release()
-                time.sleep(1)  
-                
-            self.cap = cv2.VideoCapture(0)
-            if not self.cap.isOpened():
-                self.running = False
-                self.start_cam_btn.configure(state="normal") 
-                return  
+            self.writer = cv2.VideoWriter(self.video_filename, self.fourcc, self.fps, (self.width,self.height))
 
-            # Get frame size and setup video writer
-            width, height = int(self.cap.get(3)), int(self.cap.get(4))
-            fps = 40.0 
-            fourcc = cv2.VideoWriter_fourcc(*'MPEG')
-            
-            self.video_filename = f"video/vid_q{self.current_question+1}.avi"
-            self.audio_filename = f"audio/aud_q{self.current_question+1}.wav"
+            self.running = True 
+            self.audio_running = True
 
-            # Initialize video writer
-            self.writer = cv2.VideoWriter(self.video_filename, fourcc, fps, (width, height))
-
-            # Start video and audio threads
-            self.video_thread = threading.Thread(target=self.update_frame, daemon=True)
+            self.video_thread = threading.Thread(target=self.record_video)
             self.audio_thread = threading.Thread(target=self.record_audio, daemon=True)
-            self.start_time = time.time()
+            
             self.video_thread.start()
             self.audio_thread.start()
+            
+            self.timer = threading.Timer(5, self.countdown)  # Stop after 10 seconds
+            self.timer.start()
 
-            self.update_frame()
+            self.start_cam_btn.configure(state="disabled")  
+            self.next_question_btn.configure(state="normal") 
 
-    def update_frame(self):
-        """Updates video frame in the GUI."""
-        if self.limit_reached==True:
-            return
-        
-        fin = time.time() - self.start_time
-
-        if 50 <= fin < 60:  # Show warning for last 10 seconds
-            rem = 60 - fin
-            self.warning_label.configure(fg_color="yellow", text=f"⚠️ Recording will stop in {int(rem)} seconds!", text_color="black")
-
-        elif fin >= 60 and self.limit_reached!=True:  # Stop recording after 1 minute and go to the next question
-            print("1-minute recording limit reached. Stopping...")    
-            self.limit_reached = True
-            self.warning_label.configure(fg_color="yellow",text="Proceed to the next question please!", text_color="black") 
-            self.stop_camera()            
-            return
-
-        if self.running and self.cap.isOpened():
+    def record_video(self):
+        while self.running:
             ret, frame = self.cap.read()
-            if not ret or frame is None:
-                return
             if ret:
                 self.writer.write(frame)
+        self.writer.release() 
 
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(frame_rgb)
-
-                if (self.video_label.winfo_width()!=0 and self.video_label.winfo_height()):
-                    label_width = 640 
-                    label_height = 480 
-                    img = img.resize((label_width, label_height))
-                else:
-                    time.sleep(0.3)
-
-                ctk_img = ctk.CTkImage(dark_image=img, size=(label_width, label_height))
-                self.video_label.configure(image=ctk_img, text="")
-                self.video_label.image = ctk_img 
-
-            time.sleep(0.01)
-            if not self.limit_reached:
-                self.master.after(30, self.update_frame)
+    def get_new_filename(self, dir, prefix, extension):
+        """Generates a new filename."""
+        return f"{dir}/{prefix}_{self.current_question+1}.{extension}"
+    
+    def update_frame(self):
+        """Updates video frame in the GUI."""
+        ret, frame = self.cap.read()
+        if ret:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(frame_rgb)
+            ctk_img = ctk.CTkImage(dark_image=img, size=(self.width, self.height))
+            self.video_label.configure(image=ctk_img, text="")
+            self.video_label.image = ctk_img 
+        self.uf_id = self.master.after(10,self.update_frame)        
 
     def record_audio(self):
         """Records audio while video is being recorded in a separate thread."""
@@ -178,81 +162,101 @@ class VideoCapture:
         format = pyaudio.paInt16
         channels = 1
         rate = 44100
-        
-        p = pyaudio.PyAudio()
-        self.audio_stream = p.open(format=format, 
-                                channels=channels, 
-                                rate=rate, 
-                                input=True, 
-                                frames_per_buffer=chunk)
-        
-        self.audio_frames = []
-        self.stop_event = threading.Event() 
-        
-        while not self.stop_event.is_set():
-            elapsed_time = time.time() - self.start_time  
-            if elapsed_time >= 60:  
-                self.stop_event.set()
-                break
-            
-            data = self.audio_stream.read(chunk, exception_on_overflow=False)
-            self.audio_frames.append(data)
-            time.sleep(0.01)
-        
-        self.audio_stream.stop_stream()
-        self.audio_stream.close()
-        p.terminate()
-        
+        audio = pyaudio.PyAudio()
+        stream = audio.open(format=format, channels=channels, rate=rate, input=True, frames_per_buffer=chunk)
+        frames = []
+
+        while self.audio_running:
+            data = stream.read(chunk)
+            frames.append(data)
+
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
+
         with wave.open(self.audio_filename, 'wb') as wf:
             wf.setnchannels(channels)
-            wf.setsampwidth(p.get_sample_size(format))
+            wf.setsampwidth(audio.get_sample_size(format))
             wf.setframerate(rate)
-            wf.writeframes(b''.join(self.audio_frames))
+            wf.writeframes(b''.join(frames))
 
     def next_question(self):
-        self.warning_label.configure(fg_color = "#050c30", text="")
-        self.stop_camera()
-        self.limit_reached = False
         """Displays the next question in the randomly selected list."""
-        if self.current_question < len(self.selected_questions) - 1:  # Ensure we don't exceed the list
-            self.current_question += 1
-            self.master.after(0, self.start_camera)
+        self.new_recording()
+        self.warning_label.configure(fg_color = "#050c30", text="") 
+        self.current_question+=1    
+        if self.current_question < len(self.selected_questions) - 1: 
+            self.new_recording()
+            print(self.selected_questions[self.current_question])
             self.question_label.configure(text=self.selected_questions[self.current_question])
         elif self.next_question_btn.cget("text") == "Submit Test": # added elif condition so that if the button is clicked more than once it doesnt throw error, need to implement functionality
+            self.master.after_cancel(self.uf_id)
+            self.video_label.configure(image=None, text="Video feed")
+            self.question_label.configure(text=None)
+            self.video_label.image = None
+            self.stop_camera()
             print("Submitting the test...")  
             self.submit_test()
             return
         else:
-            self.video_label.configure(image=None, text="Video feed")
-            self.video_label.image = None
+            self.question_label.configure(text=self.selected_questions[self.current_question])
             self.next_question_btn.configure(text="Submit Test")  
+
+    def new_recording(self):
+        """Stop current recording and start a new one."""
+        if self.running:
+            self.stop_camera()
+            if self.countdown_id:
+                self.master.after_cancel(self.countdown_id)
+                self.count = 10
+        else:
+            self.start_camera()
 
     def stop_camera(self):
         """Stops video and audio recording."""
-        self.running = False
-        self.stop_event.set()
-        if self.cap:
-            self.cap.release()
-        if self.writer:
+        if self.running:
+            self.running = False
+            self.audio_running = False
             self.writer.release()
-        self.audio_running = False
+
+            self.timer.cancel()
+            
+            self.video_thread.join()
+            self.audio_thread.join()
 
     def submit_test(self):
         clear_screen(self.master)
         if self.back_callback:
             self.back_callback(self.master)  # Use callback to return to main screen
 
+    def quit_scr(self):
+        if self.uf_id:
+            self.master.after_cancel(self.uf_id)
+        if self.timer:
+            self.timer.cancel()
+        
+        if self.running==True:
+            self.running = False
+            self.audio_running = False
+            self.video_thread.join()
+            self.audio_thread.join()
+            if self.writer:
+                self.writer.release() 
+        self.master.destroy()
+
     def end_test(self):
         """Ends test, deletes files, and returns to main menu."""
-        if self.running:
-            self.stop_camera()     
-            if self.audio_stream is not None:
-                try:
-                    if self.audio_stream.is_active():
-                        self.audio_stream.stop_stream()
-                except OSError:
-                    print("OSError due to recording stream state")            
-                self.audio_stream.close()     
+        if self.uf_id:
+            self.master.after_cancel(self.uf_id)
+        if self.timer:
+            self.timer.cancel()
+        
+        if self.running==True:
+            self.running = False
+            self.audio_running = False
+            self.video_thread.join()
+            self.audio_thread.join()
+            self.writer.release()      
 
         # Delete video and audio files
         for folder in ["video", "audio"]:
@@ -264,11 +268,11 @@ class VideoCapture:
         if self.back_callback:
             self.back_callback(self.master)
 
-# if __name__ == "__main__":
-#     root = ctk.CTk()
-#     root.geometry("1420x800")
-#     VideoCapture(root)  
-#     root.mainloop()
+if __name__ == "__main__":
+    root = ctk.CTk()
+    root.geometry("1420x800")
+    VideoCapture(root)  
+    root.mainloop()
 
 def start_test(master, back_callback):
     """Clears the screen and starts the Video Capture screen."""
