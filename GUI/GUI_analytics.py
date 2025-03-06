@@ -5,6 +5,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from utils import clear_screen  # Avoid circular imports
 from sqlite import get_recent_and_best_score  # Fetch scores dynamically
 
+
 BG_COLOR = "#050c30"
 BUTTON_COLOR = "#1e3a8a"
 

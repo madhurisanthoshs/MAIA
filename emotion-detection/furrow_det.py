@@ -1,6 +1,19 @@
 import cv2
-import dlib
+import dlib 
 import numpy as np
+from g4f.client import Client
+import asyncio
+
+asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+#temporarily keeping this code, wont be necessary once it is connected to the frontend
+import sys
+import os
+cur = os.path.dirname(os.path.abspath(__file__))
+par = os.path.abspath(os.path.join(cur, '..'))
+sys.path.insert(0, par)
+#till here
+from utils import report_generation
 
 class KalmanFilter:
     def __init__(self, process_noise=1e-5, measurement_noise=1e-1):
@@ -79,28 +92,37 @@ class EyebrowFurrowDetector:
         cap.release()
         return np.array(self.stress_labels)
 
-    # def compute_relax_score(self, window_size=30, step_size=15, threshold=0.6):
-    #     labels = self.stress_labels
-    #     total_frames = len(labels)
-    #     sustained_stress_windows = 0
-    #     total_windows = 0
+    def compute_relax_score(self, window_size, step_size, threshold):
+        labels = self.stress_labels
+        total_frames = len(labels)
+        sustained_stress_windows = 0
+        total_windows = 0
 
-    #     for start in range(0, total_frames - window_size + 1, step_size):
-    #         window = labels[start:start + window_size]  
-    #         stress_ratio = sum(window) / window_size  
+        for start in range(0, total_frames - window_size + 1, step_size):
+            window = labels[start:start + window_size]  
+            stress_ratio = sum(window) / window_size  
 
-    #         if stress_ratio >= threshold:
-    #             sustained_stress_windows += 1  
+            if stress_ratio >= threshold:
+                sustained_stress_windows += 1  
 
-    #         total_windows += 1
+            total_windows += 1
 
-    #     return round(100 - ((sustained_stress_windows / total_windows) * 100), 2) if total_windows > 0 else 0  
+        return round(100 - ((sustained_stress_windows / total_windows) * 100), 2) if total_windows > 0 else 0  
+    
+    def prompt_formatting(self,score):
+        prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe score obtained by the user is {score}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
+        return prompt
 
 # Usage Example:
 if __name__=="__main__":
     detector = EyebrowFurrowDetector()
     video_path = r"..\video\vid_1.avi" # REPLACE WITH VID PATH (i just recorded from mock int and used it)
-    stress_array = detector.process_video(video_path)
-    # stress_score = detector.compute_relax_score(window_size=10, step_size=5, threshold=0.6)
-    # print(f"Final Stress Score: {stress_score}%")
-    print(stress_array)
+    try:
+        stress_array = detector.process_video(video_path)
+        stress_score = detector.compute_relax_score(30,15,0.35)
+        prompt = detector.prompt_formatting(stress_score)
+        report = report_generation(prompt)
+        print(f"Final Stress Score: {stress_score}%\n\n")
+        print(f"REPORT\n {report}")
+    except FileNotFoundError:
+        print("Take the mock interview first, please!")
