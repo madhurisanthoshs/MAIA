@@ -12,12 +12,12 @@ from utils import clear_screen
 import random
 
 # Ensure necessary folders exist
-os.makedirs("video", exist_ok=True)
-os.makedirs("audio", exist_ok=True)
+os.makedirs("2_video", exist_ok=True)
+os.makedirs("1_audio", exist_ok=True)
 
 
 class VideoCapture:
-    def __init__(self, master, num_q=5, back_callback=None):
+    def __init__(self, master, num_q=5, back_callback=None, feature_callback=None):
         """Initialize video capture inside an existing window."""
         self.master = master
         self.back_callback = back_callback
@@ -57,8 +57,8 @@ class VideoCapture:
 
         self.uf_id = None
 
-        self.video_filename = self.get_new_filename("video", "vid", "avi")
-        self.audio_filename = self.get_new_filename("audio", "aud", "wav")
+        self.video_filename = self.get_new_filename("2_video", "vid", "avi")
+        self.audio_filename = self.get_new_filename("1_audio", "aud", "wav")
 
         self.create_widgets()
 
@@ -114,8 +114,8 @@ class VideoCapture:
     def start_camera(self):
         """Starts video and audio recording with improved logic."""
         if not self.running:           
-            self.video_filename = self.get_new_filename("video","vid", "avi")
-            self.audio_filename = self.get_new_filename("audio","aud", "wav")
+            self.video_filename = self.get_new_filename("2_video","vid", "avi")
+            self.audio_filename = self.get_new_filename("1_audio","aud", "wav")
 
             self.writer = cv2.VideoWriter(self.video_filename, self.fourcc, self.fps, (self.width,self.height))
 
@@ -189,7 +189,7 @@ class VideoCapture:
             self.new_recording()
             print(self.selected_questions[self.current_question])
             self.question_label.configure(text=self.selected_questions[self.current_question])
-        elif self.next_question_btn.cget("text") == "Submit Test": # added elif condition so that if the button is clicked more than once it doesnt throw error, need to implement functionality
+        elif self.next_question_btn.cget("text") == "Submit Test": 
             self.master.after_cancel(self.uf_id)
             self.video_label.configure(image=None, text="Video feed")
             self.question_label.configure(text=None)
@@ -256,10 +256,12 @@ class VideoCapture:
             self.audio_running = False
             self.video_thread.join()
             self.audio_thread.join()
-            self.writer.release()      
+            self.writer.release() 
+        if self.cap:
+            self.cap.release()     
 
         # Delete video and audio files
-        for folder in ["video", "audio"]:
+        for folder in ["2_video", "1_audio"]:
             for file in os.listdir(folder):
                 os.remove(os.path.join(folder, file))
 

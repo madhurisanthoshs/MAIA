@@ -1,8 +1,8 @@
 import customtkinter as ctk
-from GUI_content_analysis import create_content_analysis_screen
-from GUI_emotion_detection import create_emotion_detection_screen
-from GUI_job_suitability import create_job_suitability_screen
-from GUI_analytics import create_analytics_screen
+from GUI.GUI_content_analysis import create_content_analysis_screen
+from GUI.GUI_emotion_detection import create_emotion_detection_screen
+from GUI.GUI_job_suitability import create_job_suitability_screen
+from GUI.GUI_analytics import create_analytics_screen
 from utils import clear_screen
 from sqlite import get_recent_and_best_score  # Fetch scores dynamically
 
