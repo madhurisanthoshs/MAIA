@@ -6,13 +6,13 @@ import asyncio
 
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-#temporarily keeping this code, wont be necessary once it is connected to the frontend
-import sys
-import os
-cur = os.path.dirname(os.path.abspath(__file__))
-par = os.path.abspath(os.path.join(cur, '..'))
-sys.path.insert(0, par)
-#till here
+# #temporarily keeping this code, wont be necessary once it is connected to the frontend
+# import sys
+# import os
+# cur = os.path.dirname(os.path.abspath(__file__))
+# par = os.path.abspath(os.path.join(cur, '..'))
+# sys.path.insert(0, par)
+# #till here
 from utils import report_generation
 
 class KalmanFilter:
@@ -30,7 +30,7 @@ class KalmanFilter:
         return self.kf.statePost[0, 0]  
 
 class EyebrowFurrowDetector:
-    def __init__(self, predictor_path = "gaze_tracking/trained_models/shape_predictor_68_face_landmarks.dat"):
+    def __init__(self, predictor_path = "emotion_detection/gaze_tracking/trained_models/shape_predictor_68_face_landmarks.dat"):
         self.detector = dlib.get_frontal_face_detector()
         self.predictor = dlib.shape_predictor(predictor_path)
 
@@ -57,6 +57,36 @@ class EyebrowFurrowDetector:
         face_width = abs(landmarks.part(16).x - landmarks.part(0).x)
         
         return vertical_distance / face_width
+    
+    def calibrate_furrow_threshold(self, video_path, num_frames=20):
+        cap = cv2.VideoCapture(video_path)
+        eyebrow_distances = []
+        
+        frame_count = 0
+
+        while cap.isOpened() and frame_count < num_frames:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.detector(gray)
+
+            for face in faces:
+                landmarks = self.predictor(gray, face)
+                left = self.normalized_distance(landmarks, self.LEFT_EYEBROW, self.LEFT_EYE)
+                right = self.normalized_distance(landmarks, self.RIGHT_EYEBROW, self.RIGHT_EYE)
+                eyebrow_distances.append((left+right)/2)
+            frame_count += 1
+
+        cap.release()
+        
+        if len(eyebrow_distances) < num_frames:
+            print("Warning: Not enough frames detected for calibration.")
+        
+        self.FURROW_THRESHOLD = np.mean(eyebrow_distances)
+        # print(f"Calibrated Eyebrow Furrow Threshold: {self.FURROW_THRESHOLD}")
+
 
     def detect_furrow(self, landmarks):
         left_dist = self.normalized_distance(landmarks, self.LEFT_EYEBROW, self.LEFT_EYE)
@@ -67,6 +97,7 @@ class EyebrowFurrowDetector:
 
     def process_video(self, video_path):
         cap = cv2.VideoCapture(video_path)
+        self.calibrate_furrow_threshold(video_path)
         self.stress_labels = []
 
         while cap.isOpened():
@@ -112,6 +143,15 @@ class EyebrowFurrowDetector:
     def prompt_formatting(self,score):
         prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe score obtained by the user is {score}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
         return prompt
+
+def brow_furrow(video_path):
+    """
+    Takes a video path as input, processes the video, and returns the final relaxation score.
+    """
+    detector = EyebrowFurrowDetector()
+    stress_array = detector.process_video(video_path)
+    stress_score = detector.compute_relax_score(45, 30, 0.35)
+    return stress_score
 
 # Usage Example:
 if __name__=="__main__":

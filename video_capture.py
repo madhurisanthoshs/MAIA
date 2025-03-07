@@ -9,6 +9,8 @@ from PIL import Image
 #from GUI_main_screen import create_main_screen
 from utils import clear_screen
 import random
+from emotion_detection.furrow_det import brow_furrow
+from emotion_detection.gaze_det import eye_gaze
 
 # Ensure necessary folders exist
 os.makedirs("2_video", exist_ok=True)
@@ -16,12 +18,13 @@ os.makedirs("1_audio", exist_ok=True)
 
 
 class VideoCapture:
-    def __init__(self, master, num_q=5, back_callback=None):
+    def __init__(self, master, num_q=5, back_callback=None, mod=None):
         """Initialize video capture inside an existing window."""
         self.master = master
         self.back_callback = back_callback
         self.master.title("M.A.I.A - Interview Preparation")
-
+        self.brow = []
+        self.gaze = []
         # Video and audio variables
         self.cap = cv2.VideoCapture(0)
         self.writer = None
@@ -52,9 +55,11 @@ class VideoCapture:
         self.timer = None
 
         self.count = 10
-        self.countdown_id = None
+        self.countdown_id = None #to stop the countdown process when we go to next vid
 
-        self.uf_id = None
+        self.uf_id = None #to stop the updating of frames when next 
+
+        self.mod = mod
 
         self.video_filename = self.get_new_filename("2_video", "vid", "avi")
         self.audio_filename = self.get_new_filename("1_audio", "aud", "wav")
@@ -105,10 +110,10 @@ class VideoCapture:
             self.countdown_id = self.master.after(1000, self.countdown) 
         else:
             self.stop_camera()
-            print(f"Saved video: {self.video_filename}")
-            print(f"Saved audio: {self.audio_filename}")
-            self.warning_label.configure(text = "Press go to continue >:(")
-
+            self.warning_label.configure(text = "Proceeding to the next question :(")
+            time.sleep(0.5)
+            self.count = 10
+            self.next_question()
 
     def start_camera(self):
         """Starts video and audio recording with improved logic."""
@@ -151,7 +156,7 @@ class VideoCapture:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(frame_rgb)
             ctk_img = ctk.CTkImage(dark_image=img, size=(self.width, self.height))
-            self.video_label.configure(image=ctk_img)
+            self.video_label.configure(image=ctk_img, text="")
             self.video_label.image = ctk_img 
         self.uf_id = self.master.after(10,self.update_frame)        
 
@@ -181,13 +186,27 @@ class VideoCapture:
 
     def next_question(self):
         """Displays the next question in the randomly selected list."""
-        self.new_recording()
+        if self.running:
+            self.new_recording()
         self.warning_label.configure(fg_color = "#050c30", text="") 
+        if self.mod == "b":
+            print("b")
+        elif self.mod == "c":
+            print("c")
+        elif self.mod == "e":
+            self.brow_thr = threading.Thread(target=self.brow_fur_thr)
+            self.gaze_thr = threading.Thread(target=self.eye_gaze_thr)
+            self.brow_thr.start()
+            self.gaze_thr.start()
+        elif self.mod == "j":
+            print("b")
+        elif self.mod is None:
+            pass
         self.current_question+=1    
         if self.current_question < len(self.selected_questions) - 1: 
             self.new_recording()
-            print(self.selected_questions[self.current_question])
-            self.question_label.configure(text=self.selected_questions[self.current_question])
+            # print(self.selected_questions[self.current_question])
+            self.question_label.configure(text=f"{self.current_question + 1}. {self.selected_questions[self.current_question]}")
         elif self.next_question_btn.cget("text") == "Submit Test": # added elif condition so that if the button is clicked more than once it doesnt throw error, need to implement functionality
             self.master.after_cancel(self.uf_id)
             self.video_label.configure(image=None, text="Video feed")
@@ -200,7 +219,7 @@ class VideoCapture:
             return
         else:
             self.new_recording()
-            self.question_label.configure(text=self.selected_questions[self.current_question])
+            self.question_label.configure(text=f"{self.current_question+1}{self.selected_questions[self.current_question]}")
             self.next_question_btn.configure(text="Submit Test")  
 
     def new_recording(self):
@@ -229,6 +248,16 @@ class VideoCapture:
         if self.back_callback:
             self.back_callback(self.master)  # Use callback to return to main screen
 
+    def brow_fur_thr(self):
+        temp = brow_furrow(self.video_filename)
+        self.brow.append(temp)
+        print(f"brow scores: {self.brow}")
+
+    def eye_gaze_thr(self):
+        temp = eye_gaze(self.video_filename)
+        self.gaze.append(temp)
+        print(f"gaze scores: {self.gaze}")
+
     def quit_scr(self):
         if self.uf_id:
             self.master.after_cancel(self.uf_id)
@@ -255,10 +284,13 @@ class VideoCapture:
             self.running = False
             self.audio_running = False
             self.video_thread.join()
-            self.audio_thread.join()
-            self.writer.release()      
-
+            self.audio_thread.join() 
+        self.cap.release()    
         # Delete video and audio files
+        if hasattr(self, "brow_thr"):
+            self.brow_fur_thr.join()
+        if hasattr(self, "gaze_thr"):
+            self.eye_gaze_thr.join()
         for folder in ["2_video", "1_audio"]:
             for file in os.listdir(folder):
                 os.remove(os.path.join(folder, file))
@@ -274,7 +306,7 @@ if __name__ == "__main__":
     VideoCapture(root)  
     root.mainloop()
 
-def start_test(master, back_callback):
+def start_test(master, back_callback, mod=None):
     """Clears the screen and starts the Video Capture screen."""
     clear_screen(master)  # Ensure old content is removed
-    VideoCapture(master, back_callback=back_callback)  # Initialize Video Capture
+    VideoCapture(master, back_callback=back_callback, mod=mod)  # Initialize Video Capture

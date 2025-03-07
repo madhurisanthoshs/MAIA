@@ -58,7 +58,7 @@ def create_job_suitability_screen(master, back_to_main):
 
     def handle_take_test():
         job_description = job_description_box.get("1.0", "end").strip()
-        start_test(master, back_callback=back_to_main)
+        start_test(master, back_callback=back_to_main, mod="j")
         print(job_description)
 
     take_test_button = ctk.CTkButton(

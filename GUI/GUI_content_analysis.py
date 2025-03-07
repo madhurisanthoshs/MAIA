@@ -55,7 +55,7 @@ def create_content_analysis_screen(master, back_to_main):
     take_test_button = ctk.CTkButton(
         master=content_frame, text="Take the Content Analysis Test",
         font=("Segoe UI", 24, "bold"), fg_color=BUTTON_COLOR,
-        command=lambda: start_test(master, back_callback=back_to_main)  # Pass main screen callback
+        command=lambda: start_test(master, back_callback=back_to_main, mod="c")  # Pass main screen callback
     )
     take_test_button.pack(pady=5)
 
