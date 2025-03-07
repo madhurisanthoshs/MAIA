@@ -1,5 +1,5 @@
 import cv2
-from gaze_tracking import GazeTracking
+from emotion_detection.gaze_tracking.gaze_tracking import GazeTracking
 import numpy as np
 from g4f.client import Client
 import asyncio
@@ -7,12 +7,12 @@ import asyncio
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 #temporarily keeping this code, wont be necessary once it is connected to the frontend
-import sys
-import os
-cur = os.path.dirname(os.path.abspath(__file__))
-par = os.path.abspath(os.path.join(cur, '..'))
-sys.path.insert(0, par)
-#till here
+# import sys
+# import os
+# cur = os.path.dirname(os.path.abspath(__file__))
+# par = os.path.abspath(os.path.join(cur, '..'))
+# sys.path.insert(0, par)
+# #till here
 from utils import report_generation
 
 class GazeFocusDetector:
@@ -73,6 +73,12 @@ class GazeFocusDetector:
         result = response.choices[0].message.content
         return result
     
+def eye_gaze(video_path):
+    detector = GazeFocusDetector(video_path)
+    distraction_labels = detector.process_video()
+    score = detector.compute_focus_score(30,15,0.35)
+    return score
+
 if __name__=="__main__":
     video_path = r"..\video\vid_1.avi" # REPLACE WITH VID PATH (i just recorded from mock int and used it)
     try:
