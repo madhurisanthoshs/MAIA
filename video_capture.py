@@ -6,7 +6,6 @@ import threading
 import os
 import time
 from PIL import Image
-from datetime import datetime
 #from GUI_main_screen import create_main_screen
 from utils import clear_screen
 import random
@@ -17,7 +16,7 @@ os.makedirs("1_audio", exist_ok=True)
 
 
 class VideoCapture:
-    def __init__(self, master, num_q=5, back_callback=None, feature_callback=None):
+    def __init__(self, master, num_q=5, back_callback=None):
         """Initialize video capture inside an existing window."""
         self.master = master
         self.back_callback = back_callback
@@ -152,7 +151,7 @@ class VideoCapture:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(frame_rgb)
             ctk_img = ctk.CTkImage(dark_image=img, size=(self.width, self.height))
-            self.video_label.configure(image=ctk_img, text="")
+            self.video_label.configure(image=ctk_img)
             self.video_label.image = ctk_img 
         self.uf_id = self.master.after(10,self.update_frame)        
 
@@ -189,16 +188,18 @@ class VideoCapture:
             self.new_recording()
             print(self.selected_questions[self.current_question])
             self.question_label.configure(text=self.selected_questions[self.current_question])
-        elif self.next_question_btn.cget("text") == "Submit Test": 
+        elif self.next_question_btn.cget("text") == "Submit Test": # added elif condition so that if the button is clicked more than once it doesnt throw error, need to implement functionality
             self.master.after_cancel(self.uf_id)
             self.video_label.configure(image=None, text="Video feed")
             self.question_label.configure(text=None)
             self.video_label.image = None
             self.stop_camera()
+            self.cap.release()
             print("Submitting the test...")  
             self.submit_test()
             return
         else:
+            self.new_recording()
             self.question_label.configure(text=self.selected_questions[self.current_question])
             self.next_question_btn.configure(text="Submit Test")  
 
@@ -217,8 +218,7 @@ class VideoCapture:
         if self.running:
             self.running = False
             self.audio_running = False
-            self.writer.release()
-
+            
             self.timer.cancel()
             
             self.video_thread.join()
@@ -256,9 +256,7 @@ class VideoCapture:
             self.audio_running = False
             self.video_thread.join()
             self.audio_thread.join()
-            self.writer.release() 
-        if self.cap:
-            self.cap.release()     
+            self.writer.release()      
 
         # Delete video and audio files
         for folder in ["2_video", "1_audio"]:
