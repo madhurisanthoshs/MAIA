@@ -109,7 +109,7 @@ class GazeTracking(object):
     def is_center(self):
         """Returns true if the user is looking to the center"""
         if self.pupils_located:
-            return self.is_right() is not True and self.is_left() is not True
+            return (self.is_right() is not True) and (self.is_left() is not True) and (self.is_blinking() is not True)
 
     def is_blinking(self):
         """Returns true if the user closes his eyes"""
