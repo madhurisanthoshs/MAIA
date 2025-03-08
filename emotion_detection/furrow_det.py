@@ -77,14 +77,14 @@ class EyebrowFurrowDetector:
                 left = self.normalized_distance(landmarks, self.LEFT_EYEBROW, self.LEFT_EYE)
                 right = self.normalized_distance(landmarks, self.RIGHT_EYEBROW, self.RIGHT_EYE)
                 eyebrow_distances.append((left+right)/2)
-            frame_count += 1
+                frame_count += 1
 
         cap.release()
         
         if len(eyebrow_distances) < num_frames:
             print("Warning: Not enough frames detected for calibration.")
         
-        self.FURROW_THRESHOLD = np.mean(eyebrow_distances)
+        self.FURROW_THRESHOLD = np.mean(eyebrow_distances) - (np.std(eyebrow_distances))
         # print(f"Calibrated Eyebrow Furrow Threshold: {self.FURROW_THRESHOLD}")
 
 
@@ -143,7 +143,7 @@ class EyebrowFurrowDetector:
     def prompt_formatting(self,score):
         prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe score obtained by the user is {score}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
         return prompt
-
+        
 def brow_furrow(video_path):
     """
     Takes a video path as input, processes the video, and returns the final relaxation score.
@@ -156,13 +156,14 @@ def brow_furrow(video_path):
 # Usage Example:
 if __name__=="__main__":
     detector = EyebrowFurrowDetector()
-    video_path = r"..\video\vid_1.avi" # REPLACE WITH VID PATH (i just recorded from mock int and used it)
+    video_path = r"..\2_video\vid_1.avi" # REPLACE WITH VID PATH (i just recorded from mock int and used it)
     try:
         stress_array = detector.process_video(video_path)
         stress_score = detector.compute_relax_score(30,15,0.35)
         prompt = detector.prompt_formatting(stress_score)
         report = report_generation(prompt)
         print(f"Final Stress Score: {stress_score}%\n\n")
+        # print(stress_array)
         print(f"REPORT\n {report}")
     except FileNotFoundError:
         print("Take the mock interview first, please!")

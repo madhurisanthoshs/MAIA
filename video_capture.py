@@ -54,6 +54,8 @@ class VideoCapture:
 
         self.timer = None
 
+        self.threads = []
+
         self.count = 10
         self.countdown_id = None #to stop the countdown process when we go to next vid
 
@@ -86,7 +88,7 @@ class VideoCapture:
         self.control_frame = ctk.CTkFrame(self.top_frame, width=550, fg_color="#050c30")
         self.control_frame.pack(side="right", fill="y", padx=10, pady=10)
       
-        self.question_label = ctk.CTkLabel(self.control_frame, text=self.selected_questions[self.current_question], wraplength=180)
+        self.question_label = ctk.CTkLabel(self.control_frame, text=f"{self.current_question+1}. {self.selected_questions[self.current_question]}", wraplength=180)
         self.question_label.pack(pady=20)
 
         self.next_question_btn = ctk.CTkButton(self.control_frame, text="Next Question", command=self.next_question, fg_color="#1e349e", hover_color="#13205f", state="disabled")
@@ -198,6 +200,8 @@ class VideoCapture:
             self.gaze_thr = threading.Thread(target=self.eye_gaze_thr)
             self.brow_thr.start()
             self.gaze_thr.start()
+            self.threads.append(self.brow_thr)
+            self.threads.append(self.gaze_thr)
         elif self.mod == "j":
             print("b")
         elif self.mod is None:
@@ -215,11 +219,17 @@ class VideoCapture:
             self.stop_camera()
             self.cap.release()
             print("Submitting the test...")  
-            self.submit_test()
-            return
+            clear_screen(self.master)
+            self.bg = ctk.CTkFrame(master=self.master, fg_color = "#091654")
+            self.bg.pack(fill="both", expand=True)
+            self.label = ctk.CTkLabel(master=self.master, text_color="white", text = "Generating results...")
+            self.label.place(relx = 0.5, rely = 0.5, anchor = "center")
+            self.thread_sub = threading.Thread(target = self.submit_test)
+            self.thread_sub.start()
+
         else:
             self.new_recording()
-            self.question_label.configure(text=f"{self.current_question+1}{self.selected_questions[self.current_question]}")
+            self.question_label.configure(text=f"{self.current_question+1}. {self.selected_questions[self.current_question]}")
             self.next_question_btn.configure(text="Submit Test")  
 
     def new_recording(self):
@@ -244,9 +254,19 @@ class VideoCapture:
             self.audio_thread.join()
 
     def submit_test(self):
-        clear_screen(self.master)
-        if self.back_callback:
-            self.back_callback(self.master)  # Use callback to return to main screen
+        self.submit()
+        self.label.configure(text=f"brow scores: {self.brow}\ngaze scores: {self.gaze}")
+
+    def submit(self):
+        for thread in self.threads:
+            thread.join()
+        
+    def gen_res(self):        
+        pass
+        # brow_prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe scores obtained by the user for each question are given to you in the form of a list: {self.brow}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
+        # gaze prompt
+        # SER prompt
+        # calling llm for each or whatever we are doing
 
     def brow_fur_thr(self):
         temp = brow_furrow(self.video_filename)
