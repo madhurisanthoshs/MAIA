@@ -1,7 +1,8 @@
 import customtkinter as ctk
-from utils import clear_screen
+from utils import clear_screen, LoadingScreen, generate_questions
 from sqlite import get_recent_and_best_score  # Fetch scores dynamically
 from video_capture import start_test
+import threading
 
 BG_COLOR = "#050c30"
 BUTTON_COLOR = "#162884"
@@ -40,8 +41,7 @@ def create_job_suitability_screen(master, back_to_main):
         master=content_frame, height=110, width=750, font=("Segoe UI", 20),
         fg_color=BUTTON_COLOR, text_color="white"
     )
-    job_description_box.insert("1.0", "Paste your job description here...")
-    job_description_box.pack(pady=(10, 10))
+    job_description_box.pack(pady=(10, 10))    
 
     # ✅ Dynamically Updated Score Labels
     score_label = ctk.CTkLabel(
@@ -57,9 +57,19 @@ def create_job_suitability_screen(master, back_to_main):
     best_score_label.pack(pady=(20, 5))
 
     def handle_take_test():
-        job_description = job_description_box.get("1.0", "end").strip()
-        start_test(master, back_callback=back_to_main, mod="j")
-        print(job_description)
+        user_input = job_description_box.get("1.0", "end").strip()
+        with open(r"RoleFit\job_description.txt", "w") as file:
+            pass
+        with open(r"RoleFit\job_description.txt", "w") as file:
+            file.write(user_input)
+        clear_screen(master)
+        LoadingScreen(master)
+        def background_task():
+            generate_questions(5, user_input)  # Run in a separate thread
+            master.after(0, lambda: start_test(master, back_callback=back_to_main, mod="j"))  # Ensure UI updates from the main thread
+        thr = threading.Thread(target=background_task)
+        thr.start()
+        print(user_input)
 
     take_test_button = ctk.CTkButton(
         master=content_frame, text="Take the Job Suitability Test",

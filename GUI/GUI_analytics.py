@@ -73,13 +73,18 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
             "Overall": ('*', '#c916c9')
         }
 
-        if self.x_values:
-            for key, (marker, color) in plot_styles.items():
-                if self.scores[key]:
-                    ax.plot(self.x_values, self.scores[key], marker=marker, linestyle='-',
-                            label=key, color=color, linewidth=2 if key == "Overall" else 1)
+        data_plotted = False  # Flag to check if any data exists
 
-            ax.set_xlabel("Session", color="white")
+        for key, (marker, color) in plot_styles.items():
+            y_values = self.scores.get(key, [])
+            if y_values:
+                x_values = list(range(1, len(y_values) + 1))  # x = [1, 2, 3, ..., len(y)]
+                ax.plot(x_values, y_values, marker=marker, linestyle='-',
+                        label=key, color=color, linewidth=2 if key == "Overall" else 1)
+                data_plotted = True
+
+        if data_plotted:
+            ax.set_xlabel("Session Index", color="white")
             ax.set_ylabel("Score (%)", color="white")
             ax.set_title("Interview Performance Over Time", color="white")
 

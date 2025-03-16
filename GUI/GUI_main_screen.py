@@ -3,7 +3,7 @@ from GUI.GUI_content_analysis import create_content_analysis_screen
 from GUI.GUI_emotion_detection import create_emotion_detection_screen
 from GUI.GUI_job_suitability import create_job_suitability_screen
 from GUI.GUI_analytics import create_analytics_screen
-from utils import clear_screen
+from utils import clear_screen, end
 from sqlite import get_recent_and_best_score  # Fetch scores dynamically
 
 BG_COLOR = "#050c30"
@@ -103,8 +103,10 @@ def run_app():
     ctk.set_default_color_theme("blue")
 
     app = ctk.CTk()
-    app.geometry("1920x1080")
+    width= app.winfo_screenwidth()               
+    height= app.winfo_screenheight()               
+    app.geometry("%dx%d" % (width, height))
     app.title("M.A.I.A")
-
+    app.protocol("WM_DELETE_WINDOW", lambda:end(app))
     create_main_screen(app)
     app.mainloop()
