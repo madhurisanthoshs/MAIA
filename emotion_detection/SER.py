@@ -127,11 +127,15 @@ def calculate_interview_score(predictions):
     # Ensure score is within [0, 100]
     return max(0, min(100, normalized_score))
 
-def main():
+def ser(file_path):
+    """Returns predictions along with score."""
+    preds=predict_emotions(file_path)
+    score=calculate_interview_score(preds)
+    return preds, score
+
+if __name__ == "__main__":
     # Run prediction
-    file_path = r"1_audio\aud_4.wav"
+    file_path = r"1_audio\aud_1.wav"
     preds=predict_emotions(file_path)
     score=calculate_interview_score(preds)
     print(f"emotion score: {score:.2f}%")
-
-main()

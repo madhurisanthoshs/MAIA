@@ -7,10 +7,15 @@ import os
 import time
 from PIL import Image
 #from GUI_main_screen import create_main_screen
-from utils import clear_screen
+from utils import clear_screen, report_generation, LoadingScreen, end
 import random
 from emotion_detection.furrow_det import brow_furrow
 from emotion_detection.gaze_det import eye_gaze
+from emotion_detection.SER import ser
+from GUI.GUI_report import Report
+from sqlite import insert_score
+from RoleFit.role_fit import RoleFit
+from content_analysis.transcription import AudioTranscriber
 
 # Ensure necessary folders exist
 os.makedirs("2_video", exist_ok=True)
@@ -25,6 +30,14 @@ class VideoCapture:
         self.master.title("M.A.I.A - Interview Preparation")
         self.brow = []
         self.gaze = []
+        self.emo = []
+        self.emo_sc = []
+        self.rf_score = 0
+        self.prompt = ""
+        self.brow_rep = "" 
+        self.gaze_rep = ""
+        self.ser_rep = ""
+        self.rf_rep = ""
         # Video and audio variables
         self.cap = cv2.VideoCapture(0)
         self.writer = None
@@ -35,7 +48,7 @@ class VideoCapture:
         self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.audio_stream = None
         self.audio_frames = []
-        self.master.protocol("WM_DELETE_WINDOW", self.quit_scr)
+        self.master.protocol("WM_DELETE_WINDOW", lambda:end(self.master))
         self.questions = [
             "Tell me about yourself.",
             "Tell me about a time when you demonstrated leadership?",
@@ -51,7 +64,18 @@ class VideoCapture:
 
         self.selected_questions = [self.questions[random.randint(0, len(self.questions) - 1)] for _ in range(num_q)]
         self.current_question = 0
+         
+        self.rf = RoleFit()
+        
+        self.transcript = []
 
+        self.mod = mod
+        if self.mod == "j":
+            try:
+                with open(r"RoleFit\rolefit_q.txt", "r", encoding="utf-8") as file:
+                    self.selected_questions = [line.strip() for line in file]
+            except FileNotFoundError:
+                print("The file doesn't exist NOOB")
         self.timer = None
 
         self.threads = []
@@ -59,13 +83,11 @@ class VideoCapture:
         self.count = 10
         self.countdown_id = None #to stop the countdown process when we go to next vid
 
-        self.uf_id = None #to stop the updating of frames when next 
-
-        self.mod = mod
+        self.uf_id = None #to stop the updating of frames when next        
 
         self.video_filename = self.get_new_filename("2_video", "vid", "avi")
         self.audio_filename = self.get_new_filename("1_audio", "aud", "wav")
-
+        
         self.create_widgets()
 
     def create_widgets(self):
@@ -198,12 +220,15 @@ class VideoCapture:
         elif self.mod == "e":
             self.brow_thr = threading.Thread(target=self.brow_fur_thr)
             self.gaze_thr = threading.Thread(target=self.eye_gaze_thr)
+            self.SER_thr = threading.Thread(target=self.ser_thr)
             self.brow_thr.start()
             self.gaze_thr.start()
+            self.SER_thr.start()
             self.threads.append(self.brow_thr)
             self.threads.append(self.gaze_thr)
+            self.threads.append(self.SER_thr)
         elif self.mod == "j":
-            print("b")
+            pass
         elif self.mod is None:
             pass
         self.current_question+=1    
@@ -220,10 +245,7 @@ class VideoCapture:
             self.cap.release()
             print("Submitting the test...")  
             clear_screen(self.master)
-            self.bg = ctk.CTkFrame(master=self.master, fg_color = "#091654")
-            self.bg.pack(fill="both", expand=True)
-            self.label = ctk.CTkLabel(master=self.master, text_color="white", text = "Generating results...")
-            self.label.place(relx = 0.5, rely = 0.5, anchor = "center")
+            LoadingScreen(self.master)
             self.thread_sub = threading.Thread(target = self.submit_test)
             self.thread_sub.start()
 
@@ -255,19 +277,59 @@ class VideoCapture:
 
     def submit_test(self):
         self.submit()
-        self.label.configure(text=f"brow scores: {self.brow}\ngaze scores: {self.gaze}")
+        d = self.gen_res()
+        if (self.mod == "e"):
+            self.br = sum(self.brow)/len(self.brow)
+            self.ga = sum(self.gaze)/len(self.gaze)
+            self.se = sum(self.emo_sc)/len(self.emo_sc)
+            self.mod_score = (0.4 * self.se) + (0.3 * self.br) + (0.3 * self.ga)
+            insert_score("emotion_detection", round(self.mod_score))
+        elif (self.mod == "j"):
+            self.mod_score = self.rf_score
+            insert_score("job_suitability", round(self.mod_score))
+        clear_screen(self.master)
+        r = Report(self.master, d, self.back_callback)
 
     def submit(self):
         for thread in self.threads:
             thread.join()
-        
-    def gen_res(self):        
-        pass
-        # brow_prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe scores obtained by the user for each question are given to you in the form of a list: {self.brow}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
-        # gaze prompt
-        # SER prompt
-        # calling llm for each or whatever we are doing
+    
+    def brow_re(self):
+        brow_prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe scores obtained by the user for each question are given to you in the form of a list: {self.brow}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
+        self.brow_rep = report_generation(brow_prompt)
 
+    def gaze_re(self):
+        gaze_prompt = f"This is how the score is calculated for focus: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average distraction level is calculated, and the ratio of distracted frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered distracted. The final score is then determined by subtracting the percentage of distracted windows from 100, representing the overall focus level.\nThe score obtained by the user is {self.gaze}.\nYou are an expert on body language and focus. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their focus level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\nAnswer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \nEach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
+        self.gaze_rep = report_generation(gaze_prompt)
+
+    def ser_re(self):
+        # ser_prompt = SER prompt (pass list of emotions and scores)
+        # self.ser_rep = report_generation(ser_prompt)
+        pass
+
+    def gen_res(self): 
+        if (self.mod == "e"):
+            thr1 = threading.Thread(target = self.brow_re)
+            thr2 = threading.Thread(target = self.gaze_re)
+            # thr3 = threading.Thread(target = self.ser_re)
+            thr1.start()
+            thr2.start()
+            # thr3.start()
+            thr1.join()
+            thr2.join()
+            # thr3.join()
+            # dic = {"Eyebrow Furrowing": self.brow_rep, "Gaze Detection": self.gaze_rep, "Emotion Recognition": self.ser_rep}
+            dic = {"Eyebrow Furrowing": self.brow_rep, "Gaze Detection": self.gaze_rep}
+        elif self.mod == "j":
+            thr1 = threading.Thread(target = self.trans_all)
+            thr2 = threading.Thread(target = self.rf_thr)
+            thr1.start()
+            thr1.join()
+            thr2.start()
+            thr2.join()
+            dic = {"Job Suitability": self.rf_rep}
+        return dic
+        
     def brow_fur_thr(self):
         temp = brow_furrow(self.video_filename)
         self.brow.append(temp)
@@ -277,6 +339,25 @@ class VideoCapture:
         temp = eye_gaze(self.video_filename)
         self.gaze.append(temp)
         print(f"gaze scores: {self.gaze}")
+
+    def ser_thr(self):
+        t1, t2 = ser(self.audio_filename)
+        self.emo.append(t1)
+        self.emo_sc.append(t2)
+        print(f"emotions: {self.emo}\nscores:{self.emo_sc}")
+
+    def rf_thr(self):
+        self.rf_score = self.rf.role_fit_score('\n'.join(self.transcript))   
+        self.prompt = self.rf.prompt_formatting(self.transcript, self.rf_score)
+        self.rf_rep = report_generation(self.prompt)
+
+    def trans_all(self):
+        audio_dir = "1_audio"
+        for file in os.listdir(audio_dir):
+            file_path = os.path.join(audio_dir, file)
+            a = AudioTranscriber()
+            transcript = a.transcribe(file_path)
+            self.transcript.append(transcript)
 
     def quit_scr(self):
         if self.uf_id:
@@ -314,19 +395,22 @@ class VideoCapture:
         for folder in ["2_video", "1_audio"]:
             for file in os.listdir(folder):
                 os.remove(os.path.join(folder, file))
-
+        with open("RoleFit\rolefit_q.txt", 'w') as file:
+            pass
+        with open(r"RoleFit\job_description.txt","r", encoding="utf-8") as file:
+            pass
         print("Test ended, returning to main screen.")
         clear_screen(self.master)
         if self.back_callback:
             self.back_callback(self.master)
+
+def start_test(master, back_callback, mod=None):
+    """Clears the screen and starts the Video Capture screen."""
+    clear_screen(master)  # Ensure old content is removed
+    VideoCapture(master, back_callback=back_callback, mod=mod)  # Initialize Video Capture
 
 if __name__ == "__main__":
     root = ctk.CTk()
     root.geometry("1420x800")
     VideoCapture(root)  
     root.mainloop()
-
-def start_test(master, back_callback, mod=None):
-    """Clears the screen and starts the Video Capture screen."""
-    clear_screen(master)  # Ensure old content is removed
-    VideoCapture(master, back_callback=back_callback, mod=mod)  # Initialize Video Capture

@@ -30,6 +30,10 @@ class AudioTranscriber:
     def transcribe(self, audio_path):
         self.load_audio(audio_path)
         return self.print_transcript()
+    
+if __name__=="__main__":
+    a = AudioTranscriber()
+    print(a.transcribe(r"..\1_audio\aud_1.wav"))
 
 
 
