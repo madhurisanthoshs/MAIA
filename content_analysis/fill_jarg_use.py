@@ -12,44 +12,64 @@ from utils import report_generation
 import ast
 
 def filler_jargon(transcript):
-    try:
-        prompt = "{ans}\nThe above is a transcript of a response from a mock interview. You are an expert on interviews. Your task is to strictly extract and return ONLY:\n1. A list of filler words (e.g., 'um', 'uh', 'hm', 'okay', 'like', 'you know', 'so', 'kind of', etc.)\n2. A list of jargon words.\n\nYour response MUST be:\n- Two lines only.\n- The first line: a Python list of filler words, with each word inside double quotes.\n- The second line: a Python list of jargon words, also with each word inside double quotes.\n- No additional text, explanation, or empty lines.\n\nIf no filler or jargon words are found, output empty lists in the same two-line format. Example when no words are found: []\n[]\n\nBegin now:"
-        client = Client()
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt.format(ans=transcript)}],
-        )
+    prompt = (
+        "{ans}\nThe above is a transcript of a response from a mock interview. You are an expert on interviews. "
+        "Your task is to strictly extract and return ONLY:\n"
+        "1. A list of filler words (e.g., 'um', 'uh', 'hm', 'okay', 'like', 'you know', 'so', 'kind of', 'I mean', "
+        "'well', 'actually', 'right', 'basically', 'sort of', 'you see', 'literally', 'alright', 'just', 'totally', "
+        "'honestly', 'huh').\n"
+        "2. A list of jargon words (technical or domain-specific terms that may be difficult for a general audience to understand).\n\n"
+        
+        "Your response MUST follow these strict formatting rules:\n"
+        "- Exactly two lines only.\n"
+        "- The first line must contain a Python list of filler words, each word inside double quotes. If none are found, return an empty list: [].\n"
+        "- The second line must contain a Python list of jargon words, each word inside double quotes. If none are found, return an empty list: [].\n"
+        "- No additional text, explanation, commentary, or empty lines.\n\n"
+        
+        "**Example Outputs:**\n"
+        "Correct examples:\n"
+        '["um", "like", "so"]\n["synergy", "KPI"]\n'
+        '[]\n["blockchain", "scalability"]\n'
+        '["uh", "okay"]\n[]\n'
+        '[]\n[]\n\n'
+        
+        "**Important Notes:**\n"
+        "- If a filler word appears multiple times, it should still be included in the list.\n"
+        "- Do not exclude subtle filler words (e.g., 'I mean', 'you know', 'right').\n"
+        "- If there are no filler or jargon words, return exactly: []\n[].\n\n"
 
-        result = response.choices[0].message.content
-        lines = result.strip().split("\n")
-        
-        if len(lines) < 2:
-            raise ValueError(f"Expected 2 lines but got {len(lines)}: {lines}")
-        
-        filler_words = ast.literal_eval(lines[0])
-        jargon_words = ast.literal_eval(lines[1])
-        
-        return filler_words, jargon_words
+        "Begin now:"
+    )
 
-    except Exception as e:
-        print(f"Error in filler_jargon(): {e}")
-        print(f"Raw response:\n{result if 'result' in locals() else 'No result'}")
-        # Fallback: return empty lists if something breaks
-        return [], []
+    client = Client()
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt.format(ans=transcript)}],
+    )
+    result = response.choices[0].message.content
+    lines = result.strip().split("\n")
+    if len(lines) != 2:
+        print(f"here: {lines}")
+        filler_words, jargon_words = lines[0], []
+    else:
+        try:
+            filler_words = ast.literal_eval(lines[0]) if lines[0].strip() else []
+            jargon_words = ast.literal_eval(lines[1]) if lines[1].strip() else []
+        except (SyntaxError, ValueError):
+            filler_words, jargon_words = [], []    
+    return filler_words, jargon_words
 
 
 def calc_filler_jargon_score(transcript, filler_count, jargon_count):
     total_words = max(len(transcript.split()), 1)  # Avoid division by zero
-    # Set an acceptable jargon threshold (e.g., 5% of the total words)
     max_allowed_jargon = total_words * 0.1
-    excess_jargon = max(0, jargon_count - max_allowed_jargon)  # Only penalize excess jargon
-    # Compute weighted penalties
-    filler_penalty = filler_count * 2  # Filler words are more harmful
-    jargon_penalty = excess_jargon * 0.75  # Jargon is allowed in moderation
-    # Calculate total penalty
+    excess_jargon = max(0, jargon_count - max_allowed_jargon)
+    filler_penalty = filler_count * 2
+    jargon_penalty = excess_jargon * 0.75
     penalty = (filler_penalty + jargon_penalty) / total_words
-    score = round(max(10, 100 - (penalty * 150)), 2)  # Scale appropriately
+    score = round(max(10, 100 - (penalty * 150)))
     return score
+
 
 def prompt_formatting(score,transcript,filler_words,jargon_words):
     prompt = f"'{transcript}'\n the above is a transcript from a mock interview that received a score of '{score}' for jargon and filler word analysis.\njargon words identified: {jargon_words}\nfiller words identified={filler_words}\nYou are an expert on interviews. Analyze the above transcript critically, and provide helpful, actionable tips on how the user can reduce filler word and jargon usage in their responses and thus improve their score.\n answer format: \n'what you did right:' followed by a brief bulleted list of things the user did right \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"

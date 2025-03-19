@@ -12,7 +12,7 @@ with open(r"questions.txt", "r", encoding="utf-8") as file:
     questions = [line.strip() for line in file if line.strip()]
 
 def answer_relevance(transcript,question):
-    prompt = "'{ans}'\n The above is a transcript of a response from a mock interview. The question asked was: '{que}'.\nYou are an expert on interviews. Analyze the above transcript critically and strictly, and return a score for the response's relevance (0-not relevant at all, 100-perfect relevance). Return only the score as an integer value, with no text before or after the score."
+    prompt="You are an expert on interviews. Analyze the transcript below critically and strictly, and return a score for the response's relevance (0-not relevant at all, 100-perfect relevance).\nReturn only the score as an integer value, with no text before or after the score.\nTranscript:\n{ans}\nQuestion asked:\n{que}"
     client = Client()
     response = client.chat.completions.create(
         model="gpt-4o",

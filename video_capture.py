@@ -140,17 +140,16 @@ class VideoCapture:
 
         self.update_frame()
 
-    def countdown(self):
-        if self.count > 0 :
-            self.warning_label.configure(fg_color="yellow", text=f"⚠️ Recording will stop in {self.count} seconds!", text_color="black")
-            self.count -= 1
-            self.countdown_id = self.master.after(1000, self.countdown) 
-        else:
-            self.stop_camera()
-            self.warning_label.configure(text = "Proceeding to the next question :(")
-            time.sleep(0.5)
-            self.count = 10
-            self.next_question()
+    def update_frame(self):
+        """Updates video frame in the GUI."""
+        ret, frame = self.cap.read()
+        if ret:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(frame_rgb)
+            ctk_img = ctk.CTkImage(dark_image=img, size=(self.width, self.height))
+            self.video_label.configure(image=ctk_img, text="")
+            self.video_label.image = ctk_img 
+        self.uf_id = self.master.after(10,self.update_frame)  
 
     def start_camera(self):
         """Starts video and audio recording with improved logic."""
@@ -169,12 +168,12 @@ class VideoCapture:
             self.video_thread.start()
             self.audio_thread.start()
             
-            self.timer = threading.Timer(5, self.countdown)  # Stop after 10 seconds
+            self.timer = threading.Timer(50, self.countdown)  # Stop after 10 seconds
             self.timer.start()
 
             self.start_cam_btn.configure(state="disabled")  
             self.next_question_btn.configure(state="normal") 
-
+    
     def record_video(self):
         while self.running:
             ret, frame = self.cap.read()
@@ -184,18 +183,7 @@ class VideoCapture:
 
     def get_new_filename(self, dir, prefix, extension):
         """Generates a new filename."""
-        return f"{dir}/{prefix}_{self.current_question+1}.{extension}"
-    
-    def update_frame(self):
-        """Updates video frame in the GUI."""
-        ret, frame = self.cap.read()
-        if ret:
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(frame_rgb)
-            ctk_img = ctk.CTkImage(dark_image=img, size=(self.width, self.height))
-            self.video_label.configure(image=ctk_img, text="")
-            self.video_label.image = ctk_img 
-        self.uf_id = self.master.after(10,self.update_frame)        
+        return f"{dir}/{prefix}_{self.current_question+1}.{extension}"      
 
     def record_audio(self):
         """Records audio while video is being recorded in a separate thread."""
@@ -221,6 +209,39 @@ class VideoCapture:
             wf.setframerate(rate)
             wf.writeframes(b''.join(frames))
 
+    def new_recording(self):
+        """Stop current recording and start a new one."""
+        if self.running:
+            self.stop_camera()
+            if self.countdown_id:
+                self.master.after_cancel(self.countdown_id)
+                self.count = 10
+        else:
+            self.start_camera()
+
+    def stop_camera(self):
+        """Stops video and audio recording."""
+        if self.running:
+            self.running = False
+            self.audio_running = False
+            
+            self.timer.cancel()
+            
+            self.video_thread.join()
+            self.audio_thread.join()
+
+    def countdown(self):
+        if self.count > 0 :
+            self.warning_label.configure(fg_color="yellow", text=f"⚠️ Recording will stop in {self.count} seconds!", text_color="black")
+            self.count -= 1
+            self.countdown_id = self.master.after(1000, self.countdown) 
+        else:
+            self.stop_camera()
+            self.warning_label.configure(text = "Proceeding to the next question :(")
+            time.sleep(0.5)
+            self.count = 10
+            self.next_question()
+
     def next_question(self):
         """Displays the next question in the randomly selected list."""
         if self.running:
@@ -241,10 +262,10 @@ class VideoCapture:
         elif self.mod == "c":
             a = AudioTranscriber()
             self.curr_trans = a.transcribe(self.audio_filename)
-            self.cr_thr = threading.Thread(target = self.cont_rel_thr)
-            self.respconf_thr = threading.Thread(target = self.resp_conf_thr)
-            self.filljarg_thr = threading.Thread(target=self.fj_thr)
-            self.speech_thr = threading.Thread(target=self.sr_thr)
+            self.cr_thr = threading.Thread(target = self.cont_rel_thr, daemon=True)
+            self.respconf_thr = threading.Thread(target = self.resp_conf_thr, daemon=True)
+            self.filljarg_thr = threading.Thread(target=self.fj_thr, daemon=True)
+            self.speech_thr = threading.Thread(target=self.sr_thr, daemon=True)
             self.cr_thr.start()
             self.respconf_thr.start()
             self.filljarg_thr.start()
@@ -278,26 +299,9 @@ class VideoCapture:
             self.question_label.configure(text=f"{self.current_question+1}. {self.selected_questions[self.current_question]}")
             self.next_question_btn.configure(text="Submit Test")  
 
-    def new_recording(self):
-        """Stop current recording and start a new one."""
-        if self.running:
-            self.stop_camera()
-            if self.countdown_id:
-                self.master.after_cancel(self.countdown_id)
-                self.count = 10
-        else:
-            self.start_camera()
-
-    def stop_camera(self):
-        """Stops video and audio recording."""
-        if self.running:
-            self.running = False
-            self.audio_running = False
-            
-            self.timer.cancel()
-            
-            self.video_thread.join()
-            self.audio_thread.join()
+    def submit(self):
+        for thread in self.threads:
+            thread.join()
 
     def submit_test(self):
         self.submit()
@@ -318,77 +322,22 @@ class VideoCapture:
             sr = sum(self.sr)/len(self.sr)
             self.mod_score = (fj+cr+rc+sr)/4
             insert_score("content_analysis", round(self.mod_score))
-        clear_screen(self.master)
+        self.master.after(0, lambda: clear_screen(self.master))
         r = Report(self.master, d, self.back_callback, self.mod_score)
 
-    def submit(self):
-        for thread in self.threads:
-            thread.join()
-    
-    # REPORT FORMATTING FUNCTIONS
-    # EMOTION DETECTION
-    def brow_re(self):
-        brow_prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe scores obtained by the user for each question are given to you in the form of a list: {self.brow}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
-        self.brow_rep = report_generation(brow_prompt)
-
-    def gaze_re(self):
-        gaze_prompt = f"This is how the score is calculated for focus: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average distraction level is calculated, and the ratio of distracted frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered distracted. The final score is then determined by subtracting the percentage of distracted windows from 100, representing the overall focus level.\nThe score obtained by the user is {self.gaze}.\nYou are an expert on body language and focus. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their focus level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\nAnswer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \nEach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
-        self.gaze_rep = report_generation(gaze_prompt)
-
-    def ser_re(self):
-        # ser_prompt = SER prompt (pass list of emotions and scores)
-        # self.ser_rep = report_generation(ser_prompt)
-        pass
-    
-    # CONTENT ANALYSIS
-    def fj_re(self):
-        fj_prompt = f"This is how the score is calculated for filler and jargon usage: The score is based on the proportion of filler words and excessive jargon used relative to the total number of words in the transcript. Filler words (e.g., 'uh', 'um') are penalized more heavily, while jargon is only penalized if it exceeds 10% of the total word count. Each filler word reduces the score more significantly than jargon, reflecting how distracting fillers are in interviews. The final score is scaled from 0 to 100, with a minimum possible score of 10 to ensure fairness even in poor performances. The fewer fillers and excess jargon present, the higher the score. The scores obtained by the user for each question are given to you in the form of a list: {self.fj_sc}. You are an expert on interviews. Given the method for calculating the score, and the scores obtained by the user, provide helpful, actionable tips to the user to improve their use of clear and concise language and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term. 'What you did right:' followed by a brief bulleted list of things the user did right, and 'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points."
-        self.fj_rep = report_generation(fj_prompt)
-
-    def sr_re(self):
-        sr_prompt = f"This is how the score is calculated for speech rate: The score is calculated based on how close the speaker's speech rate is to an optimal target of 142 words per minute (wpm), which lies within the ideal interview range of 125-160 wpm. A Gaussian function is applied, giving the highest scores when the speech rate is near the optimal value and progressively lower scores as it deviates from it. The sigma value of 60 determines how sensitive the score is to fluctuations away from the optimal rate. Finally, the score is scaled to a range of 0 to 100, with a minimum guaranteed score of 20 out of 100, even when the speech rate is significantly off from the ideal. The scores obtained by the user for each question are given to you in the form of a list: {self.sr}. You are an expert on interviews. Given the method for calculating the score, and the scores obtained by the user, provide helpful, actionable tips to the user to improve their speech rate and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term. Answer format: 'What you did right:' followed by a brief bulleted list of things the user did right, and 'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points."
-        self.sr_rep = report_generation(sr_prompt)
-
-    def cr_re(self):
-        question_score_str = "\n".join(
-            [f"Question: {q}\nScore: {s}\n" for q, s in zip(self.selected_questions, self.cont_rel_sc)]
-        )
-        cr_prompt = (
-            f"The following are mock interview questions and the relevance scores their responses received:\n"
-            f"{question_score_str}\n"
-            "You are an expert on interviews. Given the list of scores, please provide helpful and actionable tips on how the user can improve their response's relevance and improve their performance in interviews and as a result, their score.\n\n"
-            "Please provide your response exactly as follows:"
-            "'What you did right:' followed by a brief bulleted list of strengths that can be inferred from the provided information.\n"
-            "'Tips for improvement:' followed by a brief bulleted list of tips, explaining clearly what the user can improve, why it's relevant from an interview standpoint, and how to improve it.\n"
-            "Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with bullet points for each section. Also, keep the points unique and specific to the topic, not overly general."
-        )
-        self.cr_rep = report_generation(cr_prompt)
-
-    def rc_re(self):
-        rc_prompt = f"The score you are analyzing reflects the level of response confidence in a mock interview. Higher scores indicate clearer, more assertive communication, while lower scores may reflect hesitation, uncertainty, or lack of conviction in responses. The scores obtained by the user for each question are given to you in the form of a list: {self.resp_conf_sc}. You are an expert on interviews. Given the nature of the score and the values obtained by the user, provide helpful, actionable tips to improve their response confidence and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term. Answer format: 'What you did right:' followed by a brief bulleted list of things the user did right, and 'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant to confidence (from an interview standpoint), and how the user can improve it. Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points."
-        self.resp_rep = report_generation(rc_prompt)
-
-    def trans_all(self):
-        audio_dir = "1_audio"
-        for file in os.listdir(audio_dir):
-            file_path = os.path.join(audio_dir, file)
-            a = AudioTranscriber()
-            trans = a.transcribe(file_path)
-            self.transcript.append(trans)
     def gen_res(self): 
-        print("We out here generating results hoe")
+        print("Generating results...")
         if (self.mod == "e"):
             thr1 = threading.Thread(target = self.brow_re)
             thr2 = threading.Thread(target = self.gaze_re)
-            # thr3 = threading.Thread(target = self.ser_re)
+            thr3 = threading.Thread(target = self.ser_re)
             thr1.start()
             thr2.start()
-            # thr3.start()
+            thr3.start()
             thr1.join()
             thr2.join()
-            # thr3.join()
-            # dic = {"Eyebrow Furrowing": self.brow_rep, "Gaze Detection": self.gaze_rep, "Emotion Recognition": self.ser_rep}
-            dic = {"Eyebrow Furrowing": self.brow_rep, "Gaze Detection": self.gaze_rep}
+            thr3.join()
+            dic = {f"Eyebrow Furrowing: {round(sum(self.brow)/len(self.brow))}": self.brow_rep, f"Gaze Detection: {round(sum(self.gaze)/len(self.gaze))}": self.gaze_rep, f"Emotion Recognition: {round(sum(self.emo_sc)/len(self.emo_sc))}": self.ser_rep}
         elif self.mod == "j":
             thr1 = threading.Thread(target = self.trans_all)
             thr2 = threading.Thread(target = self.rf_thr)
@@ -396,7 +345,7 @@ class VideoCapture:
             thr1.join()
             thr2.start()
             thr2.join()
-            dic = {"Job Suitability": self.rf_rep}
+            dic = {f"Job Suitability: {round(self.rf_score)}": self.rf_rep}
         elif self.mod == "c":
             thr1 = threading.Thread(target = self.rc_re)
             thr2 = threading.Thread(target = self.fj_re)
@@ -410,7 +359,7 @@ class VideoCapture:
             thr2.join()
             thr3.join()
             thr4.join()
-            dic = {"Answer Content Relevance": self.cr_rep, "Response Confidence": self.resp_rep, "Filler/Jargon Use": self.fj_rep, "Speech Rate": self.sr_rep}
+            dic = {f"Answer Content Relevance: {round(sum(self.cont_rel_sc)/len(self.cont_rel_sc))}": self.cr_rep, f"Response Confidence: {round(sum(self.resp_conf_sc)/len(self.resp_conf_sc))}": self.resp_rep, f"Filler/Jargon Use: {round(sum(self.fj_sc)/len(self.fj_sc))}": self.fj_rep, f"Speech Rate: {round(sum(self.sr)/len(self.sr))}": self.sr_rep}
         return dic
     
     # SCORE CALCULATION    
@@ -457,6 +406,67 @@ class VideoCapture:
         self.rf_score = self.rf.role_fit_score('\n'.join(self.transcript))   
         self.prompt = self.rf.prompt_formatting(self.transcript, self.rf_score)
         self.rf_rep = report_generation(self.prompt)
+
+    # REPORT FORMATTING FUNCTIONS
+    # EMOTION DETECTION
+    def brow_re(self):
+        brow_prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe scores obtained by the user for each question are given to you in the form of a list: {self.brow}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
+        self.brow_rep = report_generation(brow_prompt)
+
+    def gaze_re(self):
+        gaze_prompt = f"This is how the score is calculated for focus: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average distraction level is calculated, and the ratio of distracted frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered distracted. The final score is then determined by subtracting the percentage of distracted windows from 100, representing the overall focus level.\nThe score obtained by the user is {self.gaze}.\nYou are an expert on body language and focus. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their focus level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\nAnswer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \nEach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
+        self.gaze_rep = report_generation(gaze_prompt)
+
+    def ser_re(self):
+        temp = "\n".join([f"Score: {s}  Emotions: {e}\n" for s,e in zip(self.emo_sc, self.emo)])
+        ser_prompt = (
+            "This is how the score is calculated for speech emotion recognition: The system assigns different weights to detected emotions based on their impact on interview performance. Positive emotions such as 'positive' and 'calm' contribute positively to the score, while negative emotions like 'frustrated' and 'disengaged' lower it. Each detected emotion's weight is summed and averaged, then normalized to a 0-100 scale to ensure interpretability. A higher score indicates a confident, composed speaking style, while a lower score suggests emotional distress or disengagement.\n"
+            "The following are the scores and emotions for each question asked in the interview."
+            f"{temp}\n"
+            "You are an expert on interview coaching and emotional intelligence. Given the method for calculating the score, the user's scores, and the detected emotions, provide helpful, actionable feedback on what the user did well and how they can improve their emotional expressiveness during an interview. Provide only the most necessary, unique tips, ensuring they are practical and applicable even in the short term.\n"
+            "Answer format:\n"
+            "'What you did right:' followed by a brief bulleted list of things the user did well, and\n"
+            "'Tips for improvement:' followed by a brief bulleted list of concise, actionable tips explaining what the user can improve, why it matters in an interview, and how they can work on it.\n"
+            "Each tip should be one sentence long. Do not reply in markdown format, just give me clean text with points."
+        )
+        self.ser_rep = report_generation(ser_prompt)
+        pass
+    
+    # CONTENT ANALYSIS
+    def fj_re(self):
+        fj_prompt = f"This is how the score is calculated for filler and jargon usage: The score is based on the proportion of filler words and excessive jargon used relative to the total number of words in the transcript. Filler words (e.g., 'uh', 'um') are penalized more heavily, while jargon is only penalized if it exceeds 10% of the total word count. Each filler word reduces the score more significantly than jargon, reflecting how distracting fillers are in interviews. The final score is scaled from 0 to 100, with a minimum possible score of 10 to ensure fairness even in poor performances. The fewer fillers and excess jargon present, the higher the score. The scores obtained by the user for each question are given to you in the form of a list: {self.fj_sc}. You are an expert on interviews. Given the method for calculating the score, and the scores obtained by the user, provide helpful, actionable tips to the user to improve their use of clear and concise language and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term. 'What you did right:' followed by a brief bulleted list of things the user did right, and 'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points."
+        self.fj_rep = report_generation(fj_prompt)
+
+    def sr_re(self):
+        sr_prompt = f"This is how the score is calculated for speech rate: The score is calculated based on how close the speaker's speech rate is to an optimal target of 142 words per minute (wpm), which lies within the ideal interview range of 125-160 wpm. A Gaussian function is applied, giving the highest scores when the speech rate is near the optimal value and progressively lower scores as it deviates from it. The sigma value of 60 determines how sensitive the score is to fluctuations away from the optimal rate. Finally, the score is scaled to a range of 0 to 100, with a minimum guaranteed score of 20 out of 100, even when the speech rate is significantly off from the ideal. The scores obtained by the user for each question are given to you in the form of a list: {self.sr}. You are an expert on interviews. Given the method for calculating the score, and the scores obtained by the user, provide helpful, actionable tips to the user to improve their speech rate and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term. Answer format: 'What you did right:' followed by a brief bulleted list of things the user did right, and 'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points."
+        self.sr_rep = report_generation(sr_prompt)
+
+    def cr_re(self):
+        question_score_str = "\n".join(
+            [f"Question: {q}\nScore: {s}\n" for q, s in zip(self.selected_questions, self.cont_rel_sc)]
+        )
+        cr_prompt = (
+            f"The following are mock interview questions and the relevance scores their responses received:\n"
+            f"{question_score_str}\n"
+            "You are an expert on interviews. Given the list of scores, please provide helpful and actionable tips on how the user can improve their response's relevance and improve their performance in interviews and as a result, their score.\n\n"
+            "Please provide your response exactly as follows:"
+            "'What you did right:' followed by a brief bulleted list of strengths that can be inferred from the provided information.\n"
+            "'Tips for improvement:' followed by a brief bulleted list of tips, explaining clearly what the user can improve, why it's relevant from an interview standpoint, and how to improve it.\n"
+            "Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with bullet points for each section. Also, keep the points unique and specific to the topic, not overly general."
+        )
+        self.cr_rep = report_generation(cr_prompt)
+
+    def rc_re(self):
+        rc_prompt = f"The score you are analyzing reflects the level of response confidence in a mock interview. Higher scores indicate clearer, more assertive communication, while lower scores may reflect hesitation, uncertainty, or lack of conviction in responses. The scores obtained by the user for each question are given to you in the form of a list: {self.resp_conf_sc}. You are an expert on interviews. Given the nature of the score and the values obtained by the user, provide helpful, actionable tips to improve their response confidence and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term. Answer format: 'What you did right:' followed by a brief bulleted list of things the user did right, and 'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant to confidence (from an interview standpoint), and how the user can improve it. Each tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points."
+        self.resp_rep = report_generation(rc_prompt)
+
+    def trans_all(self):
+        audio_dir = "1_audio"
+        for file in os.listdir(audio_dir):
+            file_path = os.path.join(audio_dir, file)
+            a = AudioTranscriber()
+            trans = a.transcribe(file_path)
+            self.transcript.append(trans)
 
     def quit_scr(self):
         if self.uf_id:
