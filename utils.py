@@ -1,6 +1,7 @@
 from g4f.client import Client
 import customtkinter as ctk
 import os
+from content_analysis.transcription import AudioTranscriber
 
 def clear_screen(master):
     """Clears all widgets from the given master widget."""
