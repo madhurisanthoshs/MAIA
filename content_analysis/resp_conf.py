@@ -2,14 +2,14 @@ import asyncio # (UNCOMMENT THIS LINE WHEN RUNNING LOCALLY)
 from g4f.client import Client
 import time
 from content_analysis.transcription import AudioTranscriber
-from transcription import AudioTranscriber
+# from transcription import AudioTranscriber
 # Fix Windows event loop issue (UNCOMMENT THIS LINE WHEN RUNNING LOCALLY)
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 # from setup import * 
 from utils import report_generation
 
 def response_confidence(transcript):
-    prompt = "'{text}'\n the above is a transcript from a mock interview. You are an expert on interviews. Analyze the above transcript critically and strictly, and return a score for the response's confidence (0-not confident at all, 100-perfect confidence). Return only the score as an integer value, with no text before or after the score."
+    prompt = "'{text}'\n the above is a transcript from a mock interview. You are an expert on interviews. Analyze the above transcript critically and strictly, and return a score for the response's confidence (0-not confident at all, 100-perfect confidence). If no transcript is provided, please return a score of 0. Return only the score as an integer value, with no text before or after the score."
     client = Client()
     response = client.chat.completions.create(
         model="gpt-4o",

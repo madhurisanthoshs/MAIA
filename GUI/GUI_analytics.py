@@ -78,15 +78,21 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
         for key, (marker, color) in plot_styles.items():
             y_values = self.scores.get(key, [])
             if y_values:
-                x_values = list(range(1, len(y_values) + 1))  # x = [1, 2, 3, ..., len(y)]
+                x_values = list(range(1, len(y_values) + 1))  # Ensure whole number x-axis
                 ax.plot(x_values, y_values, marker=marker, linestyle='-',
                         label=key, color=color, linewidth=2 if key == "Overall" else 1)
                 data_plotted = True
+
+        # ✅ Set Y-axis limit to 0–100
+        ax.set_ylim(0, 100)
 
         if data_plotted:
             ax.set_xlabel("Session Index", color="white")
             ax.set_ylabel("Score (%)", color="white")
             ax.set_title("Interview Performance Over Time", color="white")
+
+            # ✅ Ensure whole numbers on the X-axis
+            ax.set_xticks(range(1, len(self.x_values) + 1))  # Ensures x-axis stays whole numbers
 
             legend = ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), facecolor="#13205f", edgecolor="white", fontsize=10)
             for text in legend.get_texts():
@@ -98,7 +104,7 @@ class InterviewPerformanceGraph(ctk.CTkFrame):
             fig.tight_layout()
         else:
             ax.text(0.5, 0.5, "No Data Available", fontsize=20, color="white", ha="center", va="center")
-            ax.set_xticks([])
+            ax.set_xticks([])  # Remove ticks if no data
             ax.set_yticks([])
 
         canvas = FigureCanvasTkAgg(fig, master=self)
