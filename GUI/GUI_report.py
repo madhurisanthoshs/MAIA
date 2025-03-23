@@ -2,10 +2,11 @@ import customtkinter as ctk
 import os
 
 class Report(ctk.CTkFrame):
-    def __init__(self, root, sections, back_to_main=None):
+    def __init__(self, root, sections, back_to_main=None, score = None):
         self.root = root
         self.root.update_idletasks()
         self.main = back_to_main
+        self.mod_score = score
         ctk.set_appearance_mode("dark")  
         ctk.set_default_color_theme("blue")  
 
@@ -23,6 +24,8 @@ class Report(ctk.CTkFrame):
 
         self.create_report(sections)
 
+        self.score_label = ctk.CTkLabel(self.below_frame, text = f"\nYour Score: {round(self.mod_score)}", font = ("Segoe UI", 20, "bold"))
+        self.score_label.pack(fill = "both")
         self.back_button = ctk.CTkButton(self.below_frame, text="Back", fg_color="#1e3a8a", text_color="white", hover_color="#3b5998", font=("Segoe UI", 18), corner_radius=20, width=300, height=40, command=self.go_back)
         self.back_button.pack(pady=20)
 
