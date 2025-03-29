@@ -74,6 +74,6 @@ class Report(ctk.CTkFrame):
 # Example usage
 if __name__ == "__main__":
     root = ctk.CTk()
-    sections_dict = {"Eyebrow Furrow": "bruh", "Eye Gaze": "this", "Emotion Speech": "is lame", "Cont": "as hell"}
+    sections_dict = {}
     app = Report(root, sections_dict)
     root.mainloop()
