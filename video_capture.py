@@ -21,6 +21,7 @@ from RoleFit.role_fit import RoleFit
 from content_analysis.transcription import AudioTranscriber
 from content_analysis.answer_cont_rel import answer_relevance
 from content_analysis.resp_conf import response_confidence
+from body_language.body_lang import bodylang
 
 # Ensure necessary folders exist
 os.makedirs("2_video", exist_ok=True)
@@ -41,6 +42,8 @@ class VideoCapture:
         self.emo_sc = []
         self.cont_rel_sc = []
         self.resp_conf_sc = []
+        self.bld_sc = []
+        self.bld_fstr = []
         self.rf_score = 0
         self.prompt = ""
         self.brow_rep = "" 
@@ -51,6 +54,7 @@ class VideoCapture:
         self.fj_rep = ""
         self.sr_rep = ""
         self.resp_rep = ""
+        self.bld_rep = ""
         # Video and audio variables
         self.cap = cv2.VideoCapture(0)
         self.writer = None
@@ -88,7 +92,7 @@ class VideoCapture:
                 with open(r"RoleFit\rolefit_q.txt", "r", encoding="utf-8") as file:
                     self.selected_questions = [line.strip() for line in file]
             except FileNotFoundError:
-                print("The file doesn't exist NOOB")
+                print("The file does not exist.")
         self.timer = None
 
         self.threads = []
@@ -175,6 +179,7 @@ class VideoCapture:
             self.next_question_btn.configure(state="normal") 
     
     def record_video(self):
+        """Records the video."""
         while self.running:
             ret, frame = self.cap.read()
             if ret:
@@ -231,6 +236,7 @@ class VideoCapture:
             self.audio_thread.join()
 
     def countdown(self):
+        """Starts a countdown so the user is informed that the recording will be stopped in 1 minute."""
         if self.count > 0 :
             self.warning_label.configure(fg_color="yellow", text=f"⚠️ Recording will stop in {self.count} seconds!", text_color="black")
             self.count -= 1
@@ -247,8 +253,12 @@ class VideoCapture:
         if self.running:
             self.new_recording()
         self.warning_label.configure(fg_color = "#050c30", text="") 
+
+        # processing the currently stored recording depending on the selected test
         if self.mod == "b":
-            print("b")
+            self.bld_thr = threading.Thread(target = self.body_thr)
+            self.bld_thr.start()
+            self.threads.append(self.bld_thr)
         elif self.mod == "e":
             self.brow_thr = threading.Thread(target=self.brow_fur_thr)
             self.gaze_thr = threading.Thread(target=self.eye_gaze_thr)
@@ -276,7 +286,10 @@ class VideoCapture:
             self.threads.append(self.respconf_thr)
         elif self.mod is None:
             pass
-        self.current_question+=1    
+
+        self.current_question+=1  
+
+        # navigating to the next question and related logic
         if self.current_question < len(self.selected_questions) - 1: 
             self.new_recording()
             # print(self.selected_questions[self.current_question])
@@ -293,17 +306,18 @@ class VideoCapture:
             LoadingScreen(self.master)
             self.thread_sub = threading.Thread(target = self.submit_test)
             self.thread_sub.start()
-
         else:
             self.new_recording()
             self.question_label.configure(text=f"{self.current_question+1}. {self.selected_questions[self.current_question]}")
             self.next_question_btn.configure(text="Submit Test")  
 
     def submit(self):
+        """Terminates all the active feature threads."""
         for thread in self.threads:
             thread.join()
 
     def submit_test(self):
+        """Calculates the final score and creates the report screen."""
         self.submit()
         d = self.gen_res()
         if (self.mod == "e"):
@@ -315,6 +329,10 @@ class VideoCapture:
         elif (self.mod == "j"):
             self.mod_score = self.rf_score
             insert_score("job_suitability", round(self.mod_score))
+        elif (self.mod == "b"):
+            bld = sum(self.bld_sc)/len(self.bld_sc)
+            self.mod_score = bld
+            insert_score("body_language", round(self.mod_score))
         elif (self.mod == "c"):
             fj = sum(self.fj_sc)/len(self.fj_sc)
             cr = sum(self.cont_rel_sc)/len(self.cont_rel_sc)
@@ -326,6 +344,7 @@ class VideoCapture:
         r = Report(self.master, d, self.back_callback, self.mod_score)
 
     def gen_res(self): 
+        """Generates the reports."""
         print("Generating results...")
         if (self.mod == "e"):
             thr1 = threading.Thread(target = self.brow_re)
@@ -346,6 +365,11 @@ class VideoCapture:
             thr2.start()
             thr2.join()
             dic = {f"Job Suitability: {round(self.rf_score)}": self.rf_rep}
+        elif self.mod == "b":
+            thr1 = threading.Thread(target = self.bld_re)
+            thr1.start()
+            thr1.join()
+            dic = {f"Body Language Detection: {round(sum(self.bld_sc)/len(self.bld_sc))}": self.bld_rep}
         elif self.mod == "c":
             thr1 = threading.Thread(target = self.rc_re)
             thr2 = threading.Thread(target = self.fj_re)
@@ -363,6 +387,12 @@ class VideoCapture:
         return dic
     
     # SCORE CALCULATION    
+    # BDOY LANGUAGE FEATURES
+    def body_thr(self):
+        temp, formtemp = bodylang(self.video_filename)
+        self.bld_sc.append(temp)
+        self.bld_fstr.append(formtemp)
+
     # EMOTION DETECTION FEATURES
     def brow_fur_thr(self):
         temp = brow_furrow(self.video_filename)
@@ -408,6 +438,12 @@ class VideoCapture:
         self.rf_rep = report_generation(self.prompt)
 
     # REPORT FORMATTING FUNCTIONS
+    # BODY LANGUAGE REPORT
+    def bld_re(self):
+        temp = "\n".join(self.bld_fstr)
+        bld_prompt = f"Given below is a summary of a user's mock interview that tests their body language. You are an expert on interviews. Analyze the provided information critically, and provide helpful, actionable tips on how the user can improve their body language during interviews and thus their score.\n answer format: \n'what you did right:' followed by a brief bulleted list of things the user did right \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points. Here are their scores along with pose distribution and duration weighted scores associated with their responses for each question: \n{temp}"
+        self.bld_rep = report_generation(bld_prompt)
+
     # EMOTION DETECTION
     def brow_re(self):
         brow_prompt = f"This is how the score is calculated for eyebrow furrowing: The sliding window method divides the sequence into overlapping segments of a fixed size. For each window, the average eyebrow distance is calculated, and the ratio of furrowed frames to total frames in the window is computed. If this ratio exceeds a set threshold, the window is considered stressed. The final score is then determined by subtracting the percentage of stressed windows from 100, representing the overall relaxation level.\nThe scores obtained by the user for each question are given to you in the form of a list: {self.brow}.\nYou are an expert on body language. Given the method for calculating the score, and the score obtained by the user, provide helpful, actionable tips to the user to improve their relaxation level and thus their score. Provide only what tips are necessary, most importantly KEEP THEM UNIQUE. Do not overwhelm the user with excessive points, and provide information that they can act on even in the short term.\n answer format: \n'What you did right:' followed by a brief bulleted list of things the user did right, and \n'Tips for improvement:' followed by a brief bulleted list of tips, outlining concisely (in simple statements without using unnecessarily complicated language) in each tip what the user can improve, why it's relevant from an interview standpoint, and how the user can improve it. \neach tip should be 1 sentence long. Do not reply in markdown format, just give me clean text with points"
@@ -461,6 +497,7 @@ class VideoCapture:
         self.resp_rep = report_generation(rc_prompt)
 
     def trans_all(self):
+        """Transcribes all the recordings and stores their transcripts in a list."""
         audio_dir = "1_audio"
         for file in os.listdir(audio_dir):
             file_path = os.path.join(audio_dir, file)
@@ -469,11 +506,7 @@ class VideoCapture:
             self.transcript.append(trans)
 
     def quit_scr(self):
-        if self.uf_id:
-            self.master.after_cancel(self.uf_id)
-        if self.timer:
-            self.timer.cancel()
-        
+        """Ends the threads and closes the window."""
         if self.running==True:
             self.running = False
             self.audio_running = False
@@ -481,6 +514,16 @@ class VideoCapture:
             self.audio_thread.join()
             if self.writer:
                 self.writer.release() 
+            self.cap.release()
+        if self.uf_id:
+            self.master.after_cancel(self.uf_id)
+        if self.timer:
+            self.timer.cancel()
+        if self.countdown_id:
+            self.master.after_cancel(self.countdown_id)        
+        if self.threads:
+            for thread in self.threads:
+                thread.join()
         self.master.destroy()
 
     def end_test(self):
@@ -489,7 +532,8 @@ class VideoCapture:
             self.master.after_cancel(self.uf_id)
         if self.timer:
             self.timer.cancel()
-        
+        if self.countdown_id:
+            self.master.after_cancel(self.countdown_id)        
         if self.running==True:
             self.running = False
             self.audio_running = False
@@ -497,10 +541,6 @@ class VideoCapture:
             self.audio_thread.join() 
         self.cap.release()    
         # Delete video and audio files
-        if hasattr(self, "brow_thr"):
-            self.brow_fur_thr.join()
-        if hasattr(self, "gaze_thr"):
-            self.eye_gaze_thr.join()
         for folder in ["2_video", "1_audio"]:
             for file in os.listdir(folder):
                 os.remove(os.path.join(folder, file))

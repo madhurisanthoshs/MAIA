@@ -3,6 +3,7 @@ from GUI.GUI_content_analysis import create_content_analysis_screen
 from GUI.GUI_emotion_detection import create_emotion_detection_screen
 from GUI.GUI_job_suitability import create_job_suitability_screen
 from GUI.GUI_analytics import create_analytics_screen
+from GUI.GUI_bodylang import create_bodylang_screen
 from utils import clear_screen, end
 from sqlite import get_recent_and_best_score  # Fetch scores dynamically
 
@@ -39,24 +40,11 @@ def create_main_screen(master):
 
     create_buttons(background_frame, master)
 
-    # ✅ Dynamically Updated Score Labels
-    score_label = ctk.CTkLabel(
-        master=background_frame, text=f"Your Score: {recent_score if recent_score is not None else 'N/A'}",
-        font=("Segoe UI", 30, "bold"), justify="center", text_color="white"
-    )
-    score_label.place(relx=0.5, rely=0.75, anchor="center")
-
-    best_score_label = ctk.CTkLabel(
-        master=background_frame, text=f"Best Score: {best_score if best_score is not None else 'N/A'}",
-        font=("Segoe UI", 30, "bold"), justify="center", text_color="white"
-    )
-    best_score_label.place(relx=0.5, rely=0.82, anchor="center")
-
     analytics_button = ctk.CTkButton(
         master=background_frame, text="View Analytics", font=("Segoe UI", 22, "bold"), fg_color=BUTTON_COLOR,
         command=lambda: create_analytics_screen(master, create_main_screen)
     )
-    analytics_button.place(relx=0.5, rely=0.89, anchor="center")
+    analytics_button.place(relx=0.5, rely=0.75, anchor="center")
 
 def create_buttons(master, app):
     """Creates buttons for navigation."""
@@ -64,7 +52,7 @@ def create_buttons(master, app):
     button_frame.place(relx=0.5, rely=0.65, anchor="center")
 
     buttons = {
-        "Body Language": lambda: create_work_in_progress_screen(app),
+        "Body Language": lambda: create_bodylang_screen(app, create_main_screen),
         "Emotion/Stress Detection": lambda: create_emotion_detection_screen(app, create_main_screen),
         "Content Analysis": lambda: create_content_analysis_screen(app, create_main_screen),
         "Job Suitability": lambda: create_job_suitability_screen(app, create_main_screen)
